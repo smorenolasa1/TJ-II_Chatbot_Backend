@@ -1,3 +1,10 @@
 pandas
 numpy
 pip install ipykernel
+pip install transformers pandas torch
+pip install pandasql
+pip install accelerate
+pip install googletrans
+pip install langchain_community
+pip install translator
+pip install nest_asyncio
