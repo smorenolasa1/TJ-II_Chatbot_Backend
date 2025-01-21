@@ -1,0 +1,9 @@
+{"instruction": "What happened during discharge 8982?", "output": "Se alarga el flat-top de corrientes a 300 ms."}
+{"instruction": "What was the programmed duration for discharge 8982?", "output": "300.0 ms"}
+{"instruction": "Did discharge 8982 include any gas failure?", "output": "No"}
+{"instruction": "What happened during discharge 8983?", "output": "Corte en 1150. Para la siguiente descarga quitamos segundo puffing."}
+{"instruction": "What was the programmed duration for discharge 8983?", "output": "300.0 ms"}
+{"instruction": "Did discharge 8983 include any gas failure?", "output": "No"}
+{"instruction": "What happened during discharge 8984?", "output": "Recuperamos. Incluimos segundo puffing (61-64)."}
+{"instruction": "What was the programmed duration for discharge 8984?", "output": "300.0 ms"}
+{"instruction": "Did discharge 8984 include any gas failure?", "output": "No"}
