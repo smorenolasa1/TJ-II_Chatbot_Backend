@@ -1,0 +1,1 @@
+#Crea una base de datos vectorial a partir de archivos .txt
