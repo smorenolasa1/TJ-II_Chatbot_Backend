@@ -8,3 +8,5 @@ pip install googletrans
 pip install langchain_community
 pip install translator
 pip install nest_asyncio
+pip install requests
+pip install matplotlib
