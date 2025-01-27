@@ -27,3 +27,4 @@ bertopic
 gdown
 nltk
 numpy==2.0.2
+ibm-watson-machine-learning
