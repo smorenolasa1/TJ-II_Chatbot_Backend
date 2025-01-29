@@ -12,8 +12,8 @@ translator
 nest_asyncio
 requests
 matplotlib
-
-
+streamlit
+fastapi
 pypdf2
 spacy_langdetect
 deep_translator
@@ -28,3 +28,4 @@ gdown
 nltk
 numpy==2.0.2
 ibm-watson-machine-learning
+ollama
