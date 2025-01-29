@@ -82,21 +82,12 @@ def main():
             else:
                 st.error("Invalid input format for plotting. Try: 'Plot TFI and Densidad2_ for shot 57547 from 0 to 2000'")
         else:
-            if user_input.strip():
-                # Send the question to the API endpoint
-                response = requests.post(
-                    "http://localhost:8000/ask",  # Adjust to your server URL
-                    json={"question": user_input},
-                )
-
-                if response.status_code == 200:
-                    st.success("Query executed successfully!")
-                    st.write("Result:")
-                    st.dataframe(response.json())
-                else:
-                    st.error("An error occurred:")
-                    st.write(response.text)
+            response = ask_api(user_input)
+            if response:
+                st.success("Response from API:")
+                st.write(response)
             else:
-                st.warning("Please enter a question before submitting.")
+                st.error("Failed to retrieve a response from the API.")
+
 if __name__ == "__main__":
     main()
