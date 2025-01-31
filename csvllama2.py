@@ -19,7 +19,7 @@ load_dotenv()
 
 # Set up Replicate for LLaMA-2
 os.environ["REPLICATE_API_TOKEN"] = os.getenv("REPLICATE_API_TOKEN")
-llama2_13b_chat = "meta/llama-2-7b-chat"
+llama2_13b_chat = "meta/meta-llama-3-8b-instruct"
 
 llm = Replicate(
     model=llama2_13b_chat,
