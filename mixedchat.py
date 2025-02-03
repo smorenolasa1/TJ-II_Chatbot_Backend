@@ -1,12 +1,6 @@
 import requests
-import matplotlib.pyplot as plt
 import urllib3
-import re
 import streamlit as st
-import json
-from langchain_community.llms import Replicate
-from dotenv import load_dotenv
-import os
 from shotllama2 import parse_user_input_with_ai, generate_url, fetch_data, extract_data_points, load_keywords, plot_data_per_signal
 from shotllama2 import load_signal_options
 
