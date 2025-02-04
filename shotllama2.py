@@ -5,12 +5,15 @@ from langchain_community.llms import Replicate
 import requests
 import streamlit as st
 import matplotlib.pyplot as plt
+import re
 
 # Load environment variables
 load_dotenv()
 os.environ["REPLICATE_API_TOKEN"] = os.getenv("REPLICATE_API_TOKEN")
 
 # Set up Replicate LLaMA-2
+os.environ["REPLICATE_API_TOKEN"] = os.getenv("REPLICATE_API_TOKEN")
+llama2_13b_chat = "meta/meta-llama-3-8b-instruct"
 llm = Replicate(
     model="meta/meta-llama-3-8b-instruct",
     model_kwargs={"temperature": 0.1, "max_new_tokens": 100}

@@ -7,7 +7,6 @@ import pandasql as ps
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.logger import logger
-import traceback
 
 nest_asyncio.apply()
 

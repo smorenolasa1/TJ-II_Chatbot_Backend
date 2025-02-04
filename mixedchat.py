@@ -1,6 +1,8 @@
 import requests
 import urllib3
 import streamlit as st
+import time
+import subprocess  # Para ejecutar otro script
 from shotllama2 import parse_user_input_with_ai, generate_url, fetch_data, extract_data_points, load_keywords, plot_data_per_signal
 from shotllama2 import load_signal_options
 
@@ -12,6 +14,26 @@ def ask_api(question):
     response = requests.post("http://localhost:8000/ask", json={"question": question})
     return response.json() if response.status_code == 200 else None
 
+def generate_report():
+    """Executes report.py via Streamlit, waits for completion, and then runs pdf.py."""
+    try:
+        # Step 1: Start the Streamlit app properly using `streamlit run`
+        process = subprocess.Popen(["streamlit", "run", "report.py"])
+        
+        st.success("Report interface started! Please complete the report in the Streamlit app.")
+
+        # Step 2: Wait for user to complete report
+        st.info("Waiting for report completion...")
+        process.wait()  # Wait until the user finishes interacting with report.py
+        
+        time.sleep(2)  # Small delay to ensure report responses are saved
+
+        # Step 3: Generate the PDF after report is completed
+        subprocess.run(["python", "pdf.py"], check=True)
+        st.success("PDF report successfully generated!")
+
+    except subprocess.CalledProcessError as e:
+        st.error(f"Error during report or PDF generation: {e}")
 def main():
     st.title("Unified TJ-II Chatbot")
     user_input = st.text_input("Ask a question or request a plot:")
@@ -21,7 +43,11 @@ def main():
     valid_signals = load_signal_options()
 
     if st.button("Submit"):
-        if any(keyword in user_input.lower() for keyword in keywords):
+        if "report" in user_input.lower():  # Detecta solicitudes de reportes
+            st.info("Generating the report...")
+            generate_report()
+        
+        elif any(keyword in user_input.lower() for keyword in keywords):
             # Use AI to interpret the request
             print("Entra a keywords")
             parsed_data = parse_user_input_with_ai(user_input)
