@@ -1,58 +1,75 @@
-import os
 import json
-from langchain_community.llms import Replicate
-from dotenv import load_dotenv
+import streamlit as st
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from report import user_responses  # Import responses directly from report.py
+import os
 
-# Load environment variables
-load_dotenv()
-os.environ["REPLICATE_API_TOKEN"] = os.getenv("REPLICATE_API_TOKEN")
+def load_responses():
+    """Loads saved responses from JSON file."""
+    try:
+        with open("user_responses.json", "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        print("❌ No response file found. Make sure to complete the report first.")
+        return {}
 
-# Set up Replicate LLaMA-2
-llm = Replicate(
-    model="meta/meta-llama-3-8b-instruct",
-    model_kwargs={"temperature": 0.1, "max_new_tokens": 500}
-)
+def generate_pdf(report_text):
+    """Creates a well-formatted PDF file from the structured report."""
+    try:
+        pdf_file = "Generated_Report.pdf"
+        c = canvas.Canvas(pdf_file, pagesize=letter)
+        width, height = letter
 
-def generate_report_text(user_responses):
-    """Uses LLaMA to generate a structured report based on user responses."""
-    prompt = (
-        "You are a professional assistant. Structure the following user responses into a well-organized report:\n"
-        f"{json.dumps(user_responses, indent=2)}\n"
-        "The report should have an Introduction, Analysis, and Conclusions section. Format it clearly."
-    )
-    structured_report = llm.invoke(input=prompt)
-    return structured_report if isinstance(structured_report, str) else "Could not generate a structured report."
+        # Title
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(100, height - 50, "Generated Report")
 
-def create_pdf(report_text, filename="Generated_Report.pdf"):
-    """Creates a PDF file with the structured report."""
-    pdf_file = filename
-    c = canvas.Canvas(pdf_file, pagesize=letter)
-    width, height = letter
+        # Report Content
+        c.setFont("Helvetica", 12)
+        y_position = height - 80
 
-    # Title
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(100, height - 50, "Generated Report")
+        for line in report_text.split("\n"):
+            if y_position < 50:  # If at bottom, create a new page
+                c.showPage()
+                c.setFont("Helvetica", 12)
+                y_position = height - 50
+            c.drawString(100, y_position, line)
+            y_position -= 20
 
-    # Report Content
-    c.setFont("Helvetica", 12)
-    text = c.beginText(100, height - 80)
-    text.setFont("Helvetica", 12)
+        c.save()
+        print(f"✅ PDF successfully generated: {pdf_file}")
+        return pdf_file
 
-    # Add report text to PDF
-    for line in report_text.split("\n"):
-        text.textLine(line)
-
-    c.drawText(text)
-    c.save()
-    print(f"PDF saved as {pdf_file}")
+    except Exception as e:
+        print(f"❌ Error generating PDF: {e}")
+        return None
 
 if __name__ == "__main__":
-    if not user_responses:
-        print("No responses found from report.py. Please complete the report first.")
-    else:
-        report_text = generate_report_text(user_responses)
-        create_pdf(report_text)
-        print("Report successfully generated as a PDF.")
+    # Load responses
+    responses = load_responses()
+
+    if not responses:
+        print("❌ No responses found. Please complete the report first.")
+        exit(1)  # Ensure subprocess detects failure
+
+    try:
+        # Generate structured report
+        report_text = f"""
+        {responses.get("report_type", "Unknown Report Type")} Report
+        
+        {json.dumps(responses, indent=2)}
+        """
+
+        # Generate the PDF
+        pdf_path = generate_pdf(report_text)
+
+        if pdf_path:
+            print(f"✅ PDF Created: {pdf_path}")
+            exit(0)  # Success
+        else:
+            print("❌ PDF generation failed.")
+            exit(1)
+
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        exit(1)  # Ensure subprocess detects failure

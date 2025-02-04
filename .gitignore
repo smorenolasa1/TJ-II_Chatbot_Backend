@@ -2,3 +2,5 @@ faiss_task_env
 PARAMETROS_TJ2_model_reduced.json
 PARAMETROS_TJ2_model_cleaned.json
 __pycache__/
+Generated_Report.pdf
+user_responses.json

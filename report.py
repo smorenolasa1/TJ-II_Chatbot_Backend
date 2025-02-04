@@ -1,5 +1,7 @@
 import os
 import streamlit as st
+import json
+import subprocess
 from langchain_community.llms import Replicate
 from dotenv import load_dotenv
 
@@ -8,10 +10,9 @@ load_dotenv()
 os.environ["REPLICATE_API_TOKEN"] = os.getenv("REPLICATE_API_TOKEN")
 
 # Set up Replicate LLaMA-2
-llama2_13b_chat = "meta/meta-llama-3-8b-instruct"
 llm = Replicate(
     model="meta/meta-llama-3-8b-instruct",
-    model_kwargs={"temperature": 0.1, "max_new_tokens": 100}
+    model_kwargs={"temperature": 0.1, "max_new_tokens": 500}
 )
 
 # Define possible report types and their respective questions
@@ -54,6 +55,16 @@ def collect_responses(report_type):
         if user_input:
             user_responses[question] = user_input
 
+def generate_report_text():
+    """Uses LLaMA-2 to generate a structured report summary."""
+    summary_prompt = f"Summarize the following responses into a structured report:\n{json.dumps(user_responses, indent=2)}"
+    return ask_llama(summary_prompt)
+
+def save_responses():
+    """Saves responses to a JSON file to be used by pdf.py."""
+    with open("user_responses.json", "w") as file:
+        json.dump(user_responses, file)
+
 def main():
     st.title("Report Generation Assistant")
 
@@ -68,15 +79,36 @@ def main():
         collect_responses(st.session_state["report_type"])
 
     if st.button("Finish and Generate Summary"):
-        st.success("Report data collected successfully!")
-        st.write("Summary of responses:")
+        st.success("✅ Report data collected successfully!")
+        st.write("### Summary of responses:")
         st.json(user_responses)  # Show collected responses in JSON format
 
-        # Generate a textual summary using LLaMA
-        summary_prompt = f"Summarize the following responses into a structured report:\n{user_responses}"
-        summary = ask_llama(summary_prompt)
-        st.subheader("Generated Report Summary")
+        # Generate structured summary
+        summary = generate_report_text()
+        st.subheader("📄 Generated Report Summary")
         st.write(summary)
+
+        # Save responses to a file for `pdf.py`
+        save_responses()
+
+        # Call pdf.py to generate the report
+        st.info("📄 Generating PDF Report...")
+        result = subprocess.run(["python", "pdf.py"], capture_output=True, text=True)
+
+        if result.returncode == 0:
+            st.success("✅ PDF Report successfully generated! Please download below.")
+
+            # Provide a button to download the PDF
+            with open("Generated_Report.pdf", "rb") as pdf_file:
+                st.download_button(
+                    label="📥 Download Report",
+                    data=pdf_file,
+                    file_name="Generated_Report.pdf",
+                    mime="application/pdf"
+                )
+        else:
+            st.error("❌ PDF generation failed. Check logs.")
+            st.text(result.stderr)  # Display error logs
 
 if __name__ == "__main__":
     main()
