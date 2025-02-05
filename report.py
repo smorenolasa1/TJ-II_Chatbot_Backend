@@ -57,13 +57,13 @@ def collect_responses(report_type):
 
 def generate_report_text():
     """Uses LLaMA-2 to generate a structured report summary."""
-    summary_prompt = f"Summarize the following responses into a structured report:\n{json.dumps(user_responses, indent=2)}"
+    summary_prompt = f"Create a well-organized and professional report based on the following responses:\n{json.dumps(user_responses, indent=2)}"
     return ask_llama(summary_prompt)
 
-def save_responses():
-    """Saves responses to a JSON file to be used by pdf.py."""
-    with open("user_responses.json", "w") as file:
-        json.dump(user_responses, file)
+def save_summary(summary_text):
+    """Saves the generated summary to a file for pdf.py."""
+    with open("generated_summary.txt", "w") as file:
+        file.write(summary_text)
 
 def main():
     st.title("Report Generation Assistant")
@@ -88,8 +88,8 @@ def main():
         st.subheader("📄 Generated Report Summary")
         st.write(summary)
 
-        # Save responses to a file for `pdf.py`
-        save_responses()
+        # Save structured summary for pdf.py
+        save_summary(summary)
 
         # Call pdf.py to generate the report
         st.info("📄 Generating PDF Report...")
