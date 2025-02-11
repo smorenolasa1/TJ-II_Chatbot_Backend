@@ -1,12 +1,15 @@
 import pandas as pd
-from langchain_community.llms import Replicate
-from dotenv import load_dotenv
+import json
 import os
 import nest_asyncio
+import numpy as np
 import pandasql as ps
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from fastapi.logger import logger
+from dotenv import load_dotenv
+from langchain_community.llms import Replicate
+from words import process_query  # Import words.py function
+import re
 
 nest_asyncio.apply()
 
@@ -25,78 +28,130 @@ llm = Replicate(
     model_kwargs={"temperature": 0.7, "max_new_tokens": 100}
 )
 
-# Load the CSV file
-file_path = "data/PARAMETROS_TJ2_ORDENADOS.csv"  # Replace with your file path
-data = pd.read_csv(file_path, delimiter=";", encoding="latin1", low_memory=False)
+# Load JSON file while preserving missing fields
+file_path = "data/PARAMETROS_TJ2_model_clean.json"
 
-# Ensure missing values are replaced properly
-for column in data.columns:
-    if data[column].dtype == "float64":
-        data[column] = data[column].fillna(-1)
-        if column == "N_DESCARGA":
-            data[column] = data[column].astype(int)
-    else:
-        data[column] = data[column].fillna("N/A")
+with open(file_path, "r", encoding="utf-8") as f:
+    raw_json_data = json.load(f)
 
-# Convert the entire DataFrame to strings
-data = data.astype(str)
+# Convert JSON list to DataFrame without inserting NaN
+data = pd.DataFrame.from_records(raw_json_data)
+data = data.astype(str).replace({"nan": None, "None": None, np.nan: None})
 
-# Define the column names and script as context
-script_context = (
-    "The table is named 'data' and contains the following important columns:\n"
-    "N_DESCARGA, fecha, hora, comentarioDesc, comentarioExp, configuracion, "
-    "potencia_radiada, energia_diamagnetica.\n"
-    "You must use these column names exactly as they are when writing SQL queries.\n"
-    "JUST OUTPUT THE SQL QUERY, NOTHING ELSE, no sure i´d be happy to help, JUST THE SQL QUERY\n"
-    "E.g.,: SELECT hora FROM data WHERE N_DESCARGA = ´26458`;"
-    "Questions must be in English, and the output must always be a valid SQL query.\n"
-    "Strictly output only the SQL query with no additional text, explanation, or formatting."
-)
-
-# Helper function to execute SQL queries on the DataFrame
+# Helper function to execute SQL queries dynamically
 def execute_sql_query(data, sql_query):
     try:
-        # Use pandasql to execute SQL queries
-        result = ps.sqldf(sql_query, locals())
-        return result
+        result = ps.sqldf(sql_query, {"data": data})
+
+        if result.empty:
+            raise HTTPException(status_code=404, detail="No matching records found.")
+
+        cleaned_result = [
+            {k: v for k, v in record.items() if v is not None} 
+            for record in result.to_dict(orient="records")
+        ]
+
+        return cleaned_result
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"SQL Execution Error: {e}")
 
 # Define request model for the API
 class Question(BaseModel):
     question: str
+    parameters: dict = None  # Structured parameters
+
+# Global dictionary to store conversation history
+conversation_history = {}
 
 @app.post("/ask")
 def ask_question(question: Question):
     try:
-        # Log the received question
         print(f"Received question: {question.question}")
 
-        # Provide the script and the question directly to the LLM
-        llm_input = f"{script_context}\nConvert the following question into an SQL query: {question.question}"
-        print(f"LLM Input: {llm_input}")
+        # Find an existing conversation where the user is clarifying
+        matching_question = next(
+            (q for q in conversation_history if question.question in sum(conversation_history[q]["extracted_keywords"].values(), [])), 
+            None
+        )
 
-        # Get the generated SQL query from LLaMA-2
+        if matching_question:
+            # Retrieve stored conversation
+            conversation = conversation_history[matching_question]
+            original_question = conversation["original_question"]
+
+            # Merge clarification into existing mapping without overwriting other fields
+            for key, matches in conversation["extracted_keywords"].items():
+                if question.question in matches:
+                    conversation["final_keyword_mapping"][key] = [question.question]
+
+            print(f"[DEBUG] Clarification detected, updating final keyword mapping: {conversation['final_keyword_mapping']}")
+
+        else:
+            # First-time request: Process normally
+            extracted_keywords = process_query(question.question)
+
+            if not extracted_keywords or extracted_keywords == "No matching parameters found.":
+                return {"message": "No relevant parameters found. Please specify."}
+
+            # Store extracted keywords and initialize mapping
+            conversation = {
+                "original_question": question.question,
+                "extracted_keywords": extracted_keywords,
+                "final_keyword_mapping": {}
+            }
+
+            # Automatically assign fields when there’s only one match
+            for key, matches in extracted_keywords.items():
+                if len(matches) == 1:
+                    conversation["final_keyword_mapping"][key] = matches
+                else:
+                    # Save conversation and ask user for clarification
+                    conversation_history[question.question] = conversation
+                    return {"message": f"Do you mean {', '.join(matches)}?"}
+
+            original_question = question.question
+
+        # Ensure all previous filters remain
+        conversation["final_keyword_mapping"] = {
+            **conversation["extracted_keywords"],  # Keep original extracted keywords
+            **conversation["final_keyword_mapping"],  # Merge any clarifications
+        }
+
+        # Store updated conversation
+        conversation_history[original_question] = conversation
+
+        # Convert final keyword mapping into an explicit column replacement guide
+        column_mapping_str = ", ".join(
+            f"'{key}' should use column(s) {values}" for key, values in conversation["final_keyword_mapping"].items()
+        )
+
+        llm_input = (
+            "The table is named 'data'.\n"
+            f"User's original question: '{original_question}'.\n"
+            f"Column mappings: {column_mapping_str}.\n"
+            "Generate a valid SQL query using these exact column names.\n"
+            "Output ONLY the SQL query."
+        )
+
         response = llm.invoke(input=llm_input).strip()
         print(f"Raw LLM Response: {response}")
 
         # Extract only the SQL query
-        # Find the first line that starts with "SELECT" and remove any leading/trailing text
-        sql_query = next((line.strip() for line in response.splitlines() if line.strip().upper().startswith("SELECT")), None)
-
+        match = re.search(r"SELECT[\s\S]+", response, re.IGNORECASE)
+        sql_query = match.group(0).strip() if match else None
         if not sql_query:
             raise HTTPException(status_code=400, detail="Invalid SQL query generated.")
 
         print(f"Cleaned SQL Query: {sql_query}")
 
-        # Execute the SQL query on the DataFrame
+        # Execute the SQL query
         result = execute_sql_query(data, sql_query)
-        print(f"Query execution result: {result}")
 
-        # Return the query result
-        return result.to_dict(orient="records")
+        print(f"Final Filtered Query Result: {result}")
+
+        return result
 
     except Exception as e:
-        # Log the detailed error
         print(f"Error during processing: {e}")
         raise HTTPException(status_code=500, detail=f"Error during processing: {e}")

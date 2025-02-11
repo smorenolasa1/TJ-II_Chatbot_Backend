@@ -14,3 +14,5 @@ fastapi
 uvicorn
 watchdog
 ollama
+spacy  
+es_core_news_sm

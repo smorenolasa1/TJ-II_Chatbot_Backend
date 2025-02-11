@@ -28,25 +28,6 @@ trace
 graph
 create
 
-# Variables
-señal
-señales
-signal
-variables
-datos
-descarga
-shot
-experimento
-medición
-time
-frequency
-amplitude
-power
-trend
-history
-average
-variation
-
 # Tipos de gráficos
 líneas
 barras
