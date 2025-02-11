@@ -61,34 +61,44 @@ class Question(BaseModel):
     question: str
     parameters: dict = None  # Structured parameters
 
-# Temporary storage for active conversation (reset after query execution)
-active_conversation = {}
+# Global dictionary to store conversation history
+conversation_history = {}
 
 @app.post("/ask")
 def ask_question(question: Question):
-    global active_conversation  # Use global scope to reset after processing
-    
     try:
         print(f"Received question: {question.question}")
 
-        # If a conversation is ongoing and user is clarifying
-        if active_conversation and "extracted_keywords" in active_conversation:
-            for key, matches in active_conversation["extracted_keywords"].items():
-                if question.question in matches:
-                    active_conversation["final_keyword_mapping"][key] = [question.question]
+        # Use the original question for context, not just the clarified one
+        original_question = question.question
 
-            print(f"[DEBUG] Clarification detected, updating final keyword mapping: {active_conversation['final_keyword_mapping']}")
+        # Find an existing conversation where the user is clarifying
+        matching_question = next(
+            (q for q in conversation_history if question.question in sum(conversation_history[q]["extracted_keywords"].values(), [])), 
+            None
+        )
+
+        if matching_question:
+            # Retrieve stored conversation
+            conversation = conversation_history[matching_question]
+
+            # Merge clarification into existing mapping without overwriting other fields
+            for key, matches in conversation["extracted_keywords"].items():
+                if question.question in matches:
+                    conversation["final_keyword_mapping"][key] = [question.question]
+
+            print(f"[DEBUG] Clarification detected, updating final keyword mapping: {conversation['final_keyword_mapping']}")
 
         else:
-            # New question: Process normally
+            # First-time request: Process normally
             extracted_keywords = process_query(question.question)
 
             if not extracted_keywords or extracted_keywords == "No matching parameters found.":
                 return {"message": "No relevant parameters found. Please specify."}
 
-            # Store extracted keywords in the active conversation
-            active_conversation = {
-                "original_question": question.question,  # Store original question
+            # Store extracted keywords and initialize mapping
+            conversation = {
+                "original_question": question.question,
                 "extracted_keywords": extracted_keywords,
                 "final_keyword_mapping": {}
             }
@@ -96,27 +106,28 @@ def ask_question(question: Question):
             # Automatically assign fields when there’s only one match
             for key, matches in extracted_keywords.items():
                 if len(matches) == 1:
-                    active_conversation["final_keyword_mapping"][key] = matches
+                    conversation["final_keyword_mapping"][key] = matches
                 else:
+                    # Save conversation and ask user for clarification
+                    conversation_history[question.question] = conversation
                     return {"message": f"Do you mean {', '.join(matches)}?"}
 
-        # Merge clarifications into the final mapping
-        active_conversation["final_keyword_mapping"] = {
-            **active_conversation["extracted_keywords"],
-            **active_conversation["final_keyword_mapping"],
+        # Ensure the final keyword mapping includes all necessary columns
+        conversation["final_keyword_mapping"] = {
+            **conversation["extracted_keywords"],  # Keep original extracted keywords
+            **conversation["final_keyword_mapping"],  # Merge any clarifications
         }
 
-        # Extract column names for SQL
-        column_names = [col for cols in active_conversation["final_keyword_mapping"].values() for col in cols]
-
-        print(f"[DEBUG] Final Keyword Mapping After Context Merge: {active_conversation['final_keyword_mapping']}")
+        # Store updated conversation
+        conversation_history[original_question] = conversation
+        column_names = [col for cols in conversation["final_keyword_mapping"].values() for col in cols]
+        print(f"[DEBUG] Final Keyword Mapping After Context Merge: {conversation['final_keyword_mapping']}")
         print(f"[DEBUG] Column Names: {column_names}")
-        # Print active conversation before sending to LLM
-        print(f"[DEBUG] LLM Input Being Sent: \nUser's question: '{active_conversation.get('original_question', '')}'.\n")        # Use the **original question** when sending to the LLM, even after clarifications
+        # Construct LLaMA-2 input with full context, using the original question
         llm_input = (
             "The table is named 'data'.\n"
-            f"User's question: '{active_conversation.get('original_question', '')}'.\n"
-            f"Use these column names exactly as they are written: {column_names}.\n"
+            f"User's original question: '{original_question}'.\n"
+            f"Use these column names exacly as they are written: {column_names}.\n"
             "Generate a valid SQL query using these exact column names.\n"
             "Output ONLY the SQL query."
         )
@@ -127,7 +138,6 @@ def ask_question(question: Question):
         # Extract only the SQL query
         match = re.search(r"SELECT[\s\S]+", response, re.IGNORECASE)
         sql_query = match.group(0).strip() if match else None
-
         if not sql_query:
             raise HTTPException(status_code=400, detail="Invalid SQL query generated.")
 
@@ -138,12 +148,8 @@ def ask_question(question: Question):
 
         print(f"Final Filtered Query Result: {result}")
 
-        # Reset active conversation after SQL execution
-        active_conversation = {}
-
         return result
 
     except Exception as e:
         print(f"Error during processing: {e}")
-        active_conversation = {}  # Reset on failure too
         raise HTTPException(status_code=500, detail=f"Error during processing: {e}")
