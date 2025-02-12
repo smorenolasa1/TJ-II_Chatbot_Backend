@@ -30,11 +30,6 @@ def extract_keywords(query):
         and not token.is_stop  # Ignore stopwords
     ]
 
-    # Ensure important terms like "descarga" are always included
-    important_terms = {"descarga"}
-    for token in doc:
-        if token.text.lower() in important_terms:
-            keywords.append(token.text.lower())
 
     keywords = list(dict.fromkeys(keywords))  # Remove duplicates while preserving order
     print("\n[DEBUG] NLP Extracted Keywords:", keywords)

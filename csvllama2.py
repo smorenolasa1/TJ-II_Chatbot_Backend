@@ -71,16 +71,28 @@ def ask_question(question: Question):
     try:
         print(f"Received question: {question.question}")
 
+        clarifications_needed = {}
+
         # If a conversation is ongoing and user is clarifying
         if active_conversation and "extracted_keywords" in active_conversation:
-            for key, matches in active_conversation["extracted_keywords"].items():
-                if question.question in matches:
-                    active_conversation["final_keyword_mapping"][key] = [question.question]
+            user_selected_values = [value.strip() for value in question.question.split(",")]  # Trim spaces
+            expected_keys = [key for key, value in active_conversation["extracted_keywords"].items() if len(value) > 1]
+            
+            print(f"[DEBUG] Expected Keys: {expected_keys}")
+            print(f"[DEBUG] User Selected Values: {user_selected_values}")
 
-            print(f"[DEBUG] Clarification detected, updating final keyword mapping: {active_conversation['final_keyword_mapping']}")
+            if len(user_selected_values) > len(expected_keys):
+                return {"message": "Too many values provided. Please match the number of clarifications requested."}
+
+            # Update the final mapping based on user selection
+            for i, key in enumerate(user_selected_values):
+                if i < len(expected_keys):  # Ensure we do not exceed the expected keys
+                    active_conversation["final_keyword_mapping"][expected_keys[i]] = [key]
+
+            print(f"[DEBUG] Updated Final Keyword Mapping: {active_conversation['final_keyword_mapping']}")
 
         else:
-            # New question: Process normally
+                        # New question: Process normally
             extracted_keywords = process_query(question.question)
 
             if not extracted_keywords or extracted_keywords == "No matching parameters found.":
@@ -93,26 +105,28 @@ def ask_question(question: Question):
                 "final_keyword_mapping": {}
             }
 
-            # Automatically assign fields when there’s only one match
+            # Check for columns that need clarification
+            clarifications_needed = {}
             for key, matches in extracted_keywords.items():
                 if len(matches) == 1:
-                    active_conversation["final_keyword_mapping"][key] = matches
+                    active_conversation["final_keyword_mapping"][key] = matches  # Store directly if only one option
                 else:
-                    return {"message": f"Do you mean {', '.join(matches)}?"}
+                    clarifications_needed[key] = matches
 
-        # Merge clarifications into the final mapping
-        active_conversation["final_keyword_mapping"] = {
-            **active_conversation["extracted_keywords"],
-            **active_conversation["final_keyword_mapping"],
-        }
+            # If clarifications are needed, ask the user for all at once
+            if clarifications_needed:
+                clarification_messages = [f"{key}: {', '.join(matches)}" for key, matches in clarifications_needed.items()]
+                return {"message": f"Do you mean: {', '.join(clarification_messages)}?"}
 
         # Extract column names for SQL
         column_names = [col for cols in active_conversation["final_keyword_mapping"].values() for col in cols]
 
-        print(f"[DEBUG] Final Keyword Mapping After Context Merge: {active_conversation['final_keyword_mapping']}")
+        print(f"[DEBUG] Final Keyword Mapping After Clarifications: {active_conversation['final_keyword_mapping']}")
         print(f"[DEBUG] Column Names: {column_names}")
         # Print active conversation before sending to LLM
-        print(f"[DEBUG] LLM Input Being Sent: \nUser's question: '{active_conversation.get('original_question', '')}'.\n")        # Use the **original question** when sending to the LLM, even after clarifications
+        print(f"[DEBUG] LLM Input Being Sent: \nUser's question: '{active_conversation.get('original_question', '')}'.\n")        
+
+        # Use the **original question** when sending to the LLM, even after clarifications
         llm_input = (
             "The table is named 'data'.\n"
             f"User's question: '{active_conversation.get('original_question', '')}'.\n"
