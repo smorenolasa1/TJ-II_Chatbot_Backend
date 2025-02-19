@@ -29,7 +29,7 @@ llm = Replicate(
 )
 
 # Load JSON file while preserving missing fields
-file_path = "data/PARAMETROS_TJ2_model_clean.json"
+file_path = "data/PARAMETROS_TJ2_model_time.json"
 
 with open(file_path, "r", encoding="utf-8") as f:
     raw_json_data = json.load(f)
@@ -128,11 +128,22 @@ def ask_question(question: Question):
 
         # Use the **original question** when sending to the LLM, even after clarifications
         llm_input = (
-            "The table is named 'data'.\n"
-            f"User's question: '{active_conversation.get('original_question', '')}'.\n"
-            f"Use these column names exactly as they are written: {column_names}.\n"
-            "Generate a valid SQL query using these exact column names.\n"
-            "Output ONLY the SQL query."
+            "La tabla se llama 'data'.\n"
+            f"Pregunta del usuario: '{active_conversation.get('original_question', '')}'.\n"
+            f"Las columnas disponibles son: {', '.join(column_names)}.\n"
+            "Genera una consulta SQL válida usando exclusivamente estas columnas.\n"
+            
+            "### Manejo de fechas ('fecha' en formato YYYY-MM-DD):\n"
+            "- Para un **día específico** usa: `WHERE fecha = 'YYYY-MM-DD'`.\n"
+            "- Para un **mes específico** usa: `WHERE strftime('%Y-%m', fecha) = 'YYYY-MM'`.\n"
+            "- Para un **año específico** usa: `WHERE strftime('%Y', fecha) = 'YYYY'`.\n"
+            
+            "### Consideraciones adicionales:\n"
+            "- Si se requiere contar descargas, usa `COUNT(N_DESCARGA)`.\n"
+            "- Para agrupar por año, usa `GROUP BY strftime('%Y', fecha)`.\n"
+            "- Si se necesita obtener solo el valor más alto, usa `ORDER BY total_descargas DESC LIMIT 1`.\n"
+
+            "Devuelve SOLO la consulta SQL sin texto adicional."
         )
 
         response = llm.invoke(input=llm_input).strip()
