@@ -1,0 +1,50 @@
+# General
+gráfico
+diagrama
+visualización
+representación
+esquema
+traza
+curva
+figura
+dibujo
+imagen
+plot
+chart
+
+# Acciones
+mostrar
+dibujar
+graficar
+representar
+trazar
+visualizar
+generar
+comparar
+superponer
+analizar
+display
+trace
+graph
+create
+
+# Tipos de gráficos
+líneas
+barras
+dispersión
+contorno
+espectro
+histograma
+mapa de calor
+densidad
+3D
+superficie
+line
+bar
+scatter
+contour
+spectrum
+histogram
+heatmap
+density
+surface
