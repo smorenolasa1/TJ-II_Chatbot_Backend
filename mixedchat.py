@@ -10,13 +10,13 @@ from shotllama2 import load_signal_options
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def ask_api(question):
-    """Sends a question to the main API."""
-    response = requests.post("http://localhost:8000/ask", json={"question": question})
+    """Sends a question to the main API (csvllama2)."""
+    response = requests.post("http://localhost:8000/csv/ask", json={"question": question})
     return response.json() if response.status_code == 200 else None
 
 def ask_api_pellet(question):
     """Sends a question to the pellet API."""
-    response = requests.post("http://localhost:8001/ask", json={"question": question})
+    response = requests.post("http://localhost:8000/pellet/ask", json={"question": question})
     return response.json() if response.status_code == 200 else None
 
 def generate_report():
