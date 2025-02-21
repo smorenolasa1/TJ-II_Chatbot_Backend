@@ -1,3 +1,6 @@
+pip==24.0
+setuptools==65.5.0
+wheel
 requests
 matplotlib
 urllib3
@@ -16,3 +19,8 @@ watchdog
 ollama
 spacy  
 es_core_news_sm
+numpy
+scipy
+sqlalchemy
+httpx
+typer
