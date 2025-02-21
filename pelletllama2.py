@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from langchain_community.llms import Replicate
-from words import process_query  # Import words.py function
+from wordspellet import process_query  # Import words.py function
 import re
 
 nest_asyncio.apply()
@@ -29,7 +29,7 @@ llm = Replicate(
 )
 
 # Load JSON file while preserving missing fields
-file_path = "data/PARAMETROS_TJ2_model_time.json"
+file_path = "data/PelletInjections_AP_final.json"
 
 with open(file_path, "r", encoding="utf-8") as f:
     raw_json_data = json.load(f)
@@ -131,19 +131,18 @@ def ask_question(question: Question):
             "La tabla se llama 'data'.\n"
             f"Pregunta del usuario: '{active_conversation.get('original_question', '')}'.\n"
             f"Las columnas disponibles son: {', '.join(column_names)}.\n"
-            "Genera una consulta SQL válida usando exclusivamente estas columnas.\n"
+            "Si el usuario pregunta por actividad pellet en un Discharge específico, devuelve la consulta SQL correcta.\n\n"
             
-            "### Manejo de fechas ('fecha' en formato YYYY-MM-DD):\n"
-            "- Para un **día específico** usa: `WHERE fecha = 'YYYY-MM-DD'`.\n"
-            "- Para un **mes específico** usa: `WHERE strftime('%Y-%m', fecha) = 'YYYY-MM'`.\n"
-            "- Para un **año específico** usa: `WHERE strftime('%Y', fecha) = 'YYYY'`.\n"
+            "### Instrucciones específicas:\n"
+            "- Filtra usando `Discharge = X` (sin comillas, porque es un número).\n"
+            "- Devuelve solo el valor de la columna `Comments`.\n"
+            "- No uses `LIKE '%pellet%'`, solo devuelve `Comments`\n"
+            "- Devuelve **solo la consulta SQL**, sin explicaciones ni texto adicional.\n\n"
             
-            "### Consideraciones adicionales:\n"
-            "- Si se requiere contar descargas, usa `COUNT(N_DESCARGA)`.\n"
-            "- Para agrupar por año, usa `GROUP BY strftime('%Y', fecha)`.\n"
-            "- Si se necesita obtener solo el valor más alto, usa `ORDER BY total_descargas DESC LIMIT 1`.\n"
-            "Si el usuario menciona una configuración específica, filtra con la columna `configuracion`.\n"
-            "Devuelve SOLO la consulta SQL sin texto adicional."
+            "Ejemplo:\n"
+            "Usuario: '¿Hay actividad pellet en la Discharge 37430?'\n"
+            "SQL correcta:\n"
+            "SELECT Comments FROM data WHERE Discharge = 37430;"
         )
 
         response = llm.invoke(input=llm_input).strip()
