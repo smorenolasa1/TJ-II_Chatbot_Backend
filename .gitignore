@@ -10,6 +10,5 @@ generated_summary.txt
 data/PelletInjections_AP.xlsx
 data/PelletInjections_AP.json
 data/PelletInjections_AP_cleaned.json
-data/PelletInjections_AP_final.json
 .env
 venv
