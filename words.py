@@ -6,8 +6,8 @@ import re
 COLUMN_NAMES_FILE = "data/column_names.txt"
 PARAMETERS_FILE = "data/PARAMETROS_TJ2_model_reduced.json"
 
-# Load a minimal Spanish NLP model (without downloading en-core-news-sm)
-nlp = spacy.blank("es")  # ✅ No need for en-core-news-sm!
+# Load spaCy NLP model (Spanish)
+nlp = spacy.load("es_core_news_sm")
 
 # Load column names from file
 def load_column_names(file_path=COLUMN_NAMES_FILE):
@@ -20,9 +20,9 @@ def load_json_data(file_path=PARAMETERS_FILE):
     with open(file_path, "r") as file:
         return json.load(file)
 
-# Extract meaningful keywords from the user query using spaCy NLP
+# Extract meaningful keywords from the user query using NLP
 def extract_keywords(query):
-    doc = nlp(query)  # Process query with the blank NLP model
+    doc = nlp(query)  # Process query with spaCy
 
     keywords = []
     current_keyword = ""
@@ -41,7 +41,7 @@ def extract_keywords(query):
         keywords.append(current_keyword)  # Add last keyword
 
     # Ensure we capture domain-specific words (e.g., "descarga") even if spaCy filtered them
-    important_words = {"descarga", "inyección", "comentario"}  # Add other scientific terms
+    important_words = {"descarga", "inyección", "comentario"}  # Add other common scientific terms
     for token in doc:
         if token.text.lower() in important_words and token.text.lower() not in keywords:
             keywords.append(token.text.lower())
@@ -85,7 +85,7 @@ def retrieve_relevant_keys(keywords, column_names):
     return keyword_mapping
 
 # Process user query
-def process_query(query):
+def process_query(query, debug=False):
     column_names = load_column_names()
     
     keywords = extract_keywords(query)
@@ -98,3 +98,7 @@ def process_query(query):
         return "No matching parameters found."
 
     return relevant_keys  # Return dictionary mapping extracted keywords to matching column names
+
+query = "cual es el comentario para la descargas 8746"
+result = process_query(query)
+print("\n[FINAL RESULT]:", result)  
