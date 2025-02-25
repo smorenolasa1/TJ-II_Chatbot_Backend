@@ -1,6 +1,7 @@
 import json
 import spacy
 import re
+from fuzzywuzzy import process 
 
 # File paths
 COLUMN_NAMES_FILE = "data/pelletcolumn.txt"
@@ -8,6 +9,7 @@ PARAMETERS_FILE = "data/PARAMETROS_TJ2_model_reduced.json"
 
 # Load spaCy NLP model (Spanish)
 nlp = spacy.load("es_core_news_sm")
+
 
 # Load column names from file
 def load_column_names(file_path=COLUMN_NAMES_FILE):
@@ -20,46 +22,50 @@ def load_json_data(file_path=PARAMETERS_FILE):
     with open(file_path, "r") as file:
         return json.load(file)
 
+# Normalization function to handle cases where lemmatization fails
+def normalize_word(token):
+    """Force lemmatization and manually handle common plural issues."""
+    lemma = token.lemma_.lower()
+    
+    # If lemma and token are the same, apply a basic rule-based singularization
+    if lemma == token.text.lower():
+        if lemma.endswith("es"):
+            return lemma[:-2]  # descargas -> descarga
+        elif lemma.endswith("s"):
+            return lemma[:-1]  # comentarios -> comentario
+    
+    return lemma
+
+# Apply fuzzy matching to fix typos
+def correct_typos(keyword, valid_words, threshold=80):  # ✅ Lowered threshold for better matches
+    """Find the closest word to 'keyword' within 'valid_words' using fuzzy matching."""
+    match, score = process.extractOne(keyword, valid_words)  # Find best match
+    return match if score >= threshold else keyword  # Only replace if it's a close match
+
 # Extract meaningful keywords from the user query using NLP
-def extract_keywords(query):
-    doc = nlp(query)  # Process query with spaCy
-
+def extract_keywords(query, column_names):
+    doc = nlp(query)  # Procesar la consulta con spaCy
     keywords = []
-    current_keyword = ""
 
     for token in doc:
-        # Allow NOUN, PROPN, NUM, and VERBS that often act as NOUNs
-        if (token.pos_ in {"NOUN", "PROPN", "NUM", "VERB"} or any(char.isdigit() for char in token.text)):
-            if token.pos_ == "NUM" and current_keyword:  
-                current_keyword += f" {token.text}"  # Merge numbers with previous words
-            else:
-                if current_keyword:
-                    keywords.append(current_keyword)  # Save previous keyword
-                current_keyword = token.text.lower()
+        word = normalize_word(token)
 
-    if current_keyword:
-        keywords.append(current_keyword)  # Add last keyword
+        # Filtrar solo sustantivos, nombres propios o verbos relevantes
+        if token.pos_ in {"NOUN", "PROPN", "VERB"} and not token.is_stop and len(token.text) > 1 and not token.text.isdigit():
+            keywords.append(word)
 
-    # Ensure we capture domain-specific words (e.g., "descarga") even if spaCy filtered them
-    important_words = {"descarga", "inyección", "comentario"}  # Add other common scientific terms
-    for token in doc:
-        if token.text.lower() in important_words and token.text.lower() not in keywords:
-            keywords.append(token.text.lower())
+    keywords = list(dict.fromkeys(keywords))  # Eliminar duplicados manteniendo el orden
 
-    keywords = list(dict.fromkeys(keywords))  # Remove duplicates while preserving order
-    print("\n[DEBUG] NLP Extracted Keywords:", keywords)
+    # Depuración
+    print("\n[DEBUG] NLP Extracted Keywords (Corrected):", keywords)
 
-    if not keywords:
-        print("[DEBUG] No keyword extracted.")
-        return None  # No match found
-
-    return keywords
+    return keywords if keywords else None
 
 # Normalize column names (convert CamelCase and underscores)
 def normalize_column_name(name):
     name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)  # Split camelCase
     name = name.replace("_", " ")  # Replace underscores with spaces
-    return name.lower()
+    return name.lower().strip()  # ✅ Remove leading/trailing spaces
 
 # Retrieve relevant keys based on matched keywords (exact match first, fallback to partial match)
 def retrieve_relevant_keys(keywords, column_names):
@@ -85,10 +91,10 @@ def retrieve_relevant_keys(keywords, column_names):
     return keyword_mapping
 
 # Process user query
-def process_query(query, debug=False):
+def process_query(query):
     column_names = load_column_names()
     
-    keywords = extract_keywords(query)
+    keywords = extract_keywords(query, column_names)
     if not keywords:
         return "No matching parameters found."
 

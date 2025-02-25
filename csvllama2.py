@@ -135,12 +135,13 @@ def ask_question(question: Question):
             
             "### Manejo de fechas ('fecha' en formato YYYY-MM-DD):\n"
             "- Para un **día específico** usa: `WHERE fecha = 'YYYY-MM-DD'`.\n"
-            "- Para un **mes específico** usa: `WHERE strftime('%Y-%m', fecha) = 'YYYY-MM'`.\n"
-            "- Para un **año específico** usa: `WHERE strftime('%Y', fecha) = 'YYYY'`.\n"
+            "- Para un **mes específico** usa: `WHERE fecha LIKE 'YYYY-MM-%'`.\n"
+            "- Para un **año específico** usa: `WHERE fecha LIKE 'YYYY-%'`.\n"
             
             "### Consideraciones adicionales:\n"
+            "Todos los numeros y celdas son strings .\n"
             "- Si se requiere contar descargas, usa `COUNT(N_DESCARGA)`.\n"
-            "- Para agrupar por año, usa `GROUP BY strftime('%Y', fecha)`.\n"
+            "- Para agrupar por año, usa `GROUP BY SUBSTR(fecha, 1, 4)`.\n"
             "- Si se necesita obtener solo el valor más alto, usa `ORDER BY total_descargas DESC LIMIT 1`.\n"
             "Si el usuario menciona una configuración específica, filtra con la columna `configuracion`.\n"
             "Devuelve SOLO la consulta SQL sin texto adicional."

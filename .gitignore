@@ -10,5 +10,6 @@ generated_summary.txt
 data/PelletInjections_AP.xlsx
 data/PelletInjections_AP.json
 data/PelletInjections_AP_cleaned.json
+PARAMETROS_TJ2_model_time1.json
 .env
 venv

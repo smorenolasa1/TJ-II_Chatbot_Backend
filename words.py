@@ -26,13 +26,21 @@ def normalize_word(token):
     """Force lemmatization and manually handle common plural issues."""
     lemma = token.lemma_.lower()
     
-    # If lemma and token are the same, apply a basic rule-based singularization
+    # Evitar que la palabra se reduzca a una sola letra
+    if len(lemma) == 1:
+        return token.text.lower()
+
+    # Si la palabra tiene 3 letras o menos, no modificarla
+    if len(lemma) <= 3:
+        return lemma  # Esto evita que "mes" -> "m"
+
+    # Si la lematización no cambia la palabra, aplicar reglas básicas
     if lemma == token.text.lower():
-        if lemma.endswith("es"):
+        if lemma.endswith("es") and len(lemma) > 3:  # Evita "mes" -> "m"
             return lemma[:-2]  # descargas -> descarga
-        elif lemma.endswith("s"):
+        elif lemma.endswith("s") and len(lemma) > 3:  # Evita palabras cortas como "mes"
             return lemma[:-1]  # comentarios -> comentario
-    
+
     return lemma
 
 # Apply fuzzy matching to fix typos
@@ -43,35 +51,22 @@ def correct_typos(keyword, valid_words, threshold=80):  # ✅ Lowered threshold 
 
 # Extract meaningful keywords from the user query using NLP
 def extract_keywords(query, column_names):
-    doc = nlp(query)  # Process query with spaCy
+    doc = nlp(query)  # Procesar la consulta con spaCy
     keywords = []
 
     for token in doc:
-        word = normalize_word(token)  # ✅ Ensure proper lemmatization
+        word = normalize_word(token)
 
-        # Allow NOUN, PROPN, NUM, and meaningful VERBS
-        if token.pos_ in {"NOUN", "PROPN", "NUM", "VERB"} or any(char.isdigit() for char in token.text):
-            if token.pos_ == "NUM":  
-                keywords.append(word)  # Ensure numbers are added separately
-            else:
-                keywords.append(word)
+        # Filtrar solo sustantivos, nombres propios o verbos relevantes
+        if token.pos_ in {"NOUN", "PROPN", "VERB"} and not token.is_stop and len(token.text) > 1 and not token.text.isdigit():
+            keywords.append(word)
 
-    keywords = list(dict.fromkeys(keywords))  # Remove duplicates while preserving order
+    keywords = list(dict.fromkeys(keywords))  # Eliminar duplicados manteniendo el orden
 
-    # ✅ Correct typos using fuzzy matching against **single words** in column names
-    valid_words = set(
-        word for col in column_names for word in normalize_column_name(col).split()
-    )  # Extract only words (no full column names)
+    # Depuración
+    print("\n[DEBUG] NLP Extracted Keywords (Corrected):", keywords)
 
-    corrected_keywords = [correct_typos(kw, valid_words) for kw in keywords]
-
-    print("\n[DEBUG] NLP Extracted Keywords (Corrected):", corrected_keywords)
-
-    if not corrected_keywords:
-        print("[DEBUG] No keyword extracted.")
-        return None  
-
-    return corrected_keywords
+    return keywords if keywords else None
 
 # Normalize column names (convert CamelCase and underscores)
 def normalize_column_name(name):
@@ -116,8 +111,3 @@ def process_query(query):
         return "No matching parameters found."
 
     return relevant_keys  # Return dictionary mapping extracted keywords to matching column names
-
-# ✅ **TEST CASE**
-query = "cual es el comntario para la descargas 8746 y el rhooo"
-result = process_query(query)
-print("\n[FINAL RESULT]:", result)  
