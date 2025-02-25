@@ -15,6 +15,9 @@ uvicorn
 watchdog
 nest-asyncio
 python-dotenv
+nltk
+spacy
+es-core-news-sm
 
 # NLP & AI
 spacy==3.8.4
