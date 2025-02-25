@@ -7,7 +7,7 @@ COLUMN_NAMES_FILE = "data/column_names.txt"
 PARAMETERS_FILE = "data/PARAMETROS_TJ2_model_reduced.json"
 
 # Load spaCy NLP model (Spanish)
-nlp = spacy.load("es_core_news_sm")
+nlp = spacy.load("es_core_news_sm")  # Ensure this is downloaded
 
 # Load column names from file
 def load_column_names(file_path=COLUMN_NAMES_FILE):
@@ -20,6 +20,20 @@ def load_json_data(file_path=PARAMETERS_FILE):
     with open(file_path, "r") as file:
         return json.load(file)
 
+# Normalization function to handle cases where lemmatization fails
+def normalize_word(token):
+    """Force lemmatization and manually handle common plural issues."""
+    lemma = token.lemma_.lower()
+    
+    # If lemma and token are the same, apply a basic rule-based singularization
+    if lemma == token.text.lower():
+        if lemma.endswith("es"):
+            return lemma[:-2]  # descargas -> descarga
+        elif lemma.endswith("s"):
+            return lemma[:-1]  # comentarios -> comentario
+    
+    return lemma
+
 # Extract meaningful keywords from the user query using NLP
 def extract_keywords(query):
     doc = nlp(query)  # Process query with spaCy
@@ -28,23 +42,14 @@ def extract_keywords(query):
     current_keyword = ""
 
     for token in doc:
-        # Allow NOUN, PROPN, NUM, and VERBS that often act as NOUNs
-        if (token.pos_ in {"NOUN", "PROPN", "NUM", "VERB"} or any(char.isdigit() for char in token.text)):
-            if token.pos_ == "NUM" and current_keyword:  
-                current_keyword += f" {token.text}"  # Merge numbers with previous words
+        word = normalize_word(token)  # ✅ Ensure proper lemmatization
+
+        # Allow NOUN, PROPN, NUM, and meaningful VERBS
+        if token.pos_ in {"NOUN", "PROPN", "NUM", "VERB"} or any(char.isdigit() for char in token.text):
+            if token.pos_ == "NUM":  
+                keywords.append(word)  # Ensure numbers are added separately
             else:
-                if current_keyword:
-                    keywords.append(current_keyword)  # Save previous keyword
-                current_keyword = token.text.lower()
-
-    if current_keyword:
-        keywords.append(current_keyword)  # Add last keyword
-
-    # Ensure we capture domain-specific words (e.g., "descarga") even if spaCy filtered them
-    important_words = {"descarga", "inyección", "comentario"}  # Add other common scientific terms
-    for token in doc:
-        if token.text.lower() in important_words and token.text.lower() not in keywords:
-            keywords.append(token.text.lower())
+                keywords.append(word)
 
     keywords = list(dict.fromkeys(keywords))  # Remove duplicates while preserving order
     print("\n[DEBUG] NLP Extracted Keywords:", keywords)
@@ -85,7 +90,7 @@ def retrieve_relevant_keys(keywords, column_names):
     return keyword_mapping
 
 # Process user query
-def process_query(query, debug=False):
+def process_query(query):
     column_names = load_column_names()
     
     keywords = extract_keywords(query)
@@ -99,6 +104,7 @@ def process_query(query, debug=False):
 
     return relevant_keys  # Return dictionary mapping extracted keywords to matching column names
 
-query = "cual es el comentario para la descargas 8746"
+# ✅ **TEST CASE**
+query = "cual es el comntario para la descargas 8746"
 result = process_query(query)
 print("\n[FINAL RESULT]:", result)  

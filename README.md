@@ -1,5 +1,6 @@
 To run the streamlit app:
 1. Install the requirements
+python -m spacy download es_core_news_sm
 2. uvicorn csvllama2:app --reload
 3. streamlit run mixedchat.py
 

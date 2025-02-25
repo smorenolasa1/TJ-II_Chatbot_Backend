@@ -16,6 +16,7 @@ watchdog
 nest-asyncio
 python-dotenv
 nltk
+fuzzywuzzy
 
 # NLP & AI
 spacy==3.8.4
