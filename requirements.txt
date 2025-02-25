@@ -16,8 +16,8 @@ watchdog
 nest-asyncio
 python-dotenv
 nltk
-spacy==3.8.4
 thinc==8.3.4
+spacy==3.1.7
 es-core-news-sm
 
 # NLP & AI
