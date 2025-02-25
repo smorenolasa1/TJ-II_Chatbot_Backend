@@ -1,6 +1,7 @@
 import json
 import spacy
 import re
+from fuzzywuzzy import process  # ✅ Fuzzy matching for typos
 
 # File paths
 COLUMN_NAMES_FILE = "data/column_names.txt"
@@ -34,12 +35,16 @@ def normalize_word(token):
     
     return lemma
 
-# Extract meaningful keywords from the user query using NLP
-def extract_keywords(query):
-    doc = nlp(query)  # Process query with spaCy
+# Apply fuzzy matching to fix typos
+def correct_typos(keyword, valid_words, threshold=80):  # ✅ Lowered threshold for better matches
+    """Find the closest word to 'keyword' within 'valid_words' using fuzzy matching."""
+    match, score = process.extractOne(keyword, valid_words)  # Find best match
+    return match if score >= threshold else keyword  # Only replace if it's a close match
 
+# Extract meaningful keywords from the user query using NLP
+def extract_keywords(query, column_names):
+    doc = nlp(query)  # Process query with spaCy
     keywords = []
-    current_keyword = ""
 
     for token in doc:
         word = normalize_word(token)  # ✅ Ensure proper lemmatization
@@ -52,19 +57,27 @@ def extract_keywords(query):
                 keywords.append(word)
 
     keywords = list(dict.fromkeys(keywords))  # Remove duplicates while preserving order
-    print("\n[DEBUG] NLP Extracted Keywords:", keywords)
 
-    if not keywords:
+    # ✅ Correct typos using fuzzy matching against **single words** in column names
+    valid_words = set(
+        word for col in column_names for word in normalize_column_name(col).split()
+    )  # Extract only words (no full column names)
+
+    corrected_keywords = [correct_typos(kw, valid_words) for kw in keywords]
+
+    print("\n[DEBUG] NLP Extracted Keywords (Corrected):", corrected_keywords)
+
+    if not corrected_keywords:
         print("[DEBUG] No keyword extracted.")
-        return None  # No match found
+        return None  
 
-    return keywords
+    return corrected_keywords
 
 # Normalize column names (convert CamelCase and underscores)
 def normalize_column_name(name):
     name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)  # Split camelCase
     name = name.replace("_", " ")  # Replace underscores with spaces
-    return name.lower()
+    return name.lower().strip()  # ✅ Remove leading/trailing spaces
 
 # Retrieve relevant keys based on matched keywords (exact match first, fallback to partial match)
 def retrieve_relevant_keys(keywords, column_names):
@@ -93,7 +106,7 @@ def retrieve_relevant_keys(keywords, column_names):
 def process_query(query):
     column_names = load_column_names()
     
-    keywords = extract_keywords(query)
+    keywords = extract_keywords(query, column_names)
     if not keywords:
         return "No matching parameters found."
 
@@ -105,6 +118,6 @@ def process_query(query):
     return relevant_keys  # Return dictionary mapping extracted keywords to matching column names
 
 # ✅ **TEST CASE**
-query = "cual es el comntario para la descargas 8746"
+query = "cual es el comntario para la descargas 8746 y el rhooo"
 result = process_query(query)
 print("\n[FINAL RESULT]:", result)  
