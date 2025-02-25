@@ -17,6 +17,8 @@ nest-asyncio
 python-dotenv
 nltk
 fuzzywuzzy
+python-Levenshtein
+ngrok
 
 # NLP & AI
 spacy==3.8.4

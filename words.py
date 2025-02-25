@@ -23,23 +23,30 @@ def load_json_data(file_path=PARAMETERS_FILE):
 
 # Normalization function to handle cases where lemmatization fails
 def normalize_word(token):
-    """Force lemmatization and manually handle common plural issues."""
+    """Forzar el uso del sustantivo cuando hay ambigüedad y evitar lematización incorrecta."""
+
+    # Si el token es un sustantivo (NOUN), tratar los plurales
+    if token.pos_ == "NOUN":
+        word = token.text.lower()
+
+        # Si la palabra es plural, convertirla a singular (pero sin afectar palabras cortas)
+        if word.endswith("es") and len(word) > 3:  # Evita errores como "mes" -> "m"
+            return word[:-2]  # Ejemplo: "descargas" -> "descarga"
+        elif word.endswith("s") and len(word) > 3:  # Evita errores en palabras cortas
+            return word[:-1]  # Ejemplo: "comentarios" -> "comentario"
+        
+        return word  # Mantener el original si no se cumplen las condiciones
+
+    # Lematización estándar para otros casos
     lemma = token.lemma_.lower()
-    
-    # Evitar que la palabra se reduzca a una sola letra
-    if len(lemma) == 1:
+
+    # Evitar que palabras muy cortas sean alteradas (ej: "mes" -> "m")
+    if len(lemma) <= 3:
         return token.text.lower()
 
-    # Si la palabra tiene 3 letras o menos, no modificarla
-    if len(lemma) <= 3:
-        return lemma  # Esto evita que "mes" -> "m"
-
-    # Si la lematización no cambia la palabra, aplicar reglas básicas
-    if lemma == token.text.lower():
-        if lemma.endswith("es") and len(lemma) > 3:  # Evita "mes" -> "m"
-            return lemma[:-2]  # descargas -> descarga
-        elif lemma.endswith("s") and len(lemma) > 3:  # Evita palabras cortas como "mes"
-            return lemma[:-1]  # comentarios -> comentario
+    # Si spaCy cambió un sustantivo a verbo, revertir el cambio
+    if token.pos_ == "VERB" and token.text.lower().endswith("a"):
+        return token.text.lower()  # Mantener "descarga" en vez de "descargar"
 
     return lemma
 
@@ -111,3 +118,7 @@ def process_query(query):
         return "No matching parameters found."
 
     return relevant_keys  # Return dictionary mapping extracted keywords to matching column names
+
+# query = "cual es el numero de descargas por mes"
+# result = process_query(query)
+# print("\n[FINAL RESULT]:", result) ∫ 
