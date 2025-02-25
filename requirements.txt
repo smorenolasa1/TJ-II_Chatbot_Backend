@@ -1,5 +1,5 @@
-pip==24.0
-setuptools==58.2.0
+pip
+setuptools>=58.0.4
 wheel
 
 # Core Libraries
