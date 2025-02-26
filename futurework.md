@@ -1,1 +1,1 @@
-Crear un script para automatizar el preprocessing de los csv, y así solo hay que meterlo y te lo convierte en el json file limpiado automaticamete. 
+Crear un script para automatizar el preprocessing de los csv, y así solo hay que meterlo y te lo convierte en el json file limpiado automaticamete.
