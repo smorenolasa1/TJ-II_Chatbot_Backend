@@ -4,6 +4,8 @@ python -m spacy download es_core_news_sm
 2. uvicorn csvllama2:app --reload
 3. streamlit run mixedchat.py
 
+Run similpatternconneciton.py and shotllama2connection.py
+
 Para añadir la ruta del programa de client y server.bat
 nano ~/.zshrc
 
