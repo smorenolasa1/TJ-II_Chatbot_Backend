@@ -129,7 +129,6 @@ def ask_question(question: Question):
         # Extract column names for SQL
         column_names = [col for cols in active_conversation["final_keyword_mapping"].values() for col in cols]
 
-        print(f"[DEBUG] Final Keyword Mapping After Clarifications: {active_conversation['final_keyword_mapping']}")
         print(f"[DEBUG] Column Names: {column_names}")
         # Print active conversation before sending to LLM
         print(f"[DEBUG] LLM Input Being Sent: \nUser's question: '{active_conversation.get('original_question', '')}'.\n")        

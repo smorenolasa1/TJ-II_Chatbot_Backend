@@ -119,6 +119,6 @@ def process_query(query):
 
     return relevant_keys  # Return dictionary mapping extracted keywords to matching column names
 
-# query = "cual es el numero de descargas por mes"
-# result = process_query(query)
-# print("\n[FINAL RESULT]:", result) ∫ 
+#query = "cual es el comentario y el rho de la descarga 18080"
+#result = process_query(query)
+#print("\n[FINAL RESULT]:", result)  
