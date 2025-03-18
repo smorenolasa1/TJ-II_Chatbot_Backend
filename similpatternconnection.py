@@ -9,6 +9,7 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import requests
 from dotenv import load_dotenv
+import re
 
 # Load environment variables
 load_dotenv()
@@ -117,7 +118,13 @@ def plot_signals(shot_number, similar_shots):
 
     return plot_path
 
-# Endpoint for asking Gemini AI
+def clean_ai_response(text):
+    """Removes markdown formatting like **bold**, *italic*, and converts it to plain text."""
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)  # Remove bold
+    text = re.sub(r"\*(.*?)\*", r"\1", text)  # Remove italics
+    text = re.sub(r"\n\s*\n", "\n", text)  # Remove extra newlines
+    return text.strip()
+
 @app.route("/ask_gemini", methods=["POST"])
 def ask_gemini():
     try:
@@ -141,19 +148,19 @@ def ask_gemini():
         print(f"✅ Similar shots retrieved: {similar_shots}")
 
         # ✅ Convert similarity data to text format
-        similarity_data = "\n".join([f"Shot: {shot}, Confidence: {conf}" for conf, shot in similar_shots])
+        similarity_data = "\n".join([f"Shot {shot}: Confidence {conf:.4f}" for conf, shot in similar_shots])
 
         # ✅ Ask Gemini AI
         prompt = f"""
-        A user is analyzing plasma fusion shot similarities. 
+        The user is analyzing plasma fusion shot similarities.
         The reference shot number is {shot_number}, and here are the most similar signals:
 
         {similarity_data}
 
         The user asks: "{question}"
 
-        Answer in an analytical way, summarizing the similarities, trends, and any insights.
-        If relevant, suggest looking at the plot.
+        Answer clearly in plain text format without using asterisks, markdown, or extra formatting.
+        Use bullet points when listing similarities.
         """
 
         print(f"📡 Sending prompt to Gemini: {prompt[:200]}...")
@@ -161,20 +168,23 @@ def ask_gemini():
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
 
-        print(f"✅ AI Response received: {response.text[:200]}...")
+        cleaned_response = clean_ai_response(response.text)
+
+        print(f"✅ Cleaned AI Response:\n{cleaned_response}")
 
         # ✅ Generate Plot
         plot_path = plot_signals(shot_number, similar_shots)
         plot_url = f"http://localhost:5000/static/{os.path.basename(plot_path)}"
 
         return jsonify({
-            "response": response.text,
+            "response": cleaned_response,
             "plot_url": plot_url
         })
 
     except Exception as e:
         print(f"❌ ERROR in /ask_gemini: {str(e)}")
-        return jsonify({"error": f"Server error: {str(e)}"}), 500# Serve static images
+        return jsonify({"error": f"Server error: {str(e)}"}), 500   
+
 @app.route("/extract_shot_number", methods=["POST"])
 def extract_shot_number():
     try:
