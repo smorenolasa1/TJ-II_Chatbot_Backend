@@ -21,35 +21,43 @@ genai.configure(api_key=google_api_key)
 # Use the correct model
 MODEL_NAME = "models/gemini-1.5-pro"
 
-# Store dataset in memory for user queries
+# Store dataset
 stored_df = None
+MAX_ROWS = 500  # Limit for Gemini AI
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    """Handles CSV file upload and stores it in memory."""
-    global stored_df  # Allow modification of the stored dataset
-    
+    """Handles CSV file upload and stores the dataset."""
+    global stored_df
+
     try:
         if "file" not in request.files:
             return jsonify({"error": "No file provided"}), 400
 
         file = request.files["file"]
-        stored_df = pd.read_csv(file)  # Store CSV in memory
+        stored_df = pd.read_csv(file)  # Store full dataset
+        total_rows = len(stored_df)
 
-        return jsonify({"message": "CSV uploaded successfully!"})
-    
+        return jsonify({
+            "message": "CSV uploaded successfully!",
+            "total_rows": total_rows,
+            "max_rows": MAX_ROWS  # Inform frontend of the AI limit
+        })
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Error processing file: {str(e)}"}), 500
 
 
 @app.route("/ask", methods=["POST"])
 def ask_question():
-    """Handles user questions based on the uploaded CSV dataset."""
-    global stored_df  # Access the stored dataset
-    
+    """Handles user questions based on the selected dataset range."""
+    global stored_df
+
     try:
         data = request.get_json()
         question = data.get("question")
+        start_row = int(data.get("start_row", 0))  # Default start from 0
+        end_row = int(data.get("end_row", MAX_ROWS))  # Default to max limit
 
         if not question:
             return jsonify({"error": "No question provided"}), 400
@@ -57,20 +65,40 @@ def ask_question():
         if stored_df is None:
             return jsonify({"error": "No dataset uploaded. Please upload a CSV first."}), 400
 
-        # Convert DataFrame to string for AI processing
-        csv_data = stored_df.to_csv(index=False)
+        # Limit row selection to prevent errors
+        total_rows = len(stored_df)
+        if start_row < 0 or end_row > total_rows or start_row >= end_row:
+            return jsonify({"error": "Invalid row range selected."}), 400
+
+        # Select the user-defined range
+        selected_df = stored_df.iloc[start_row:end_row]
+
+        # Convert DataFrame to text for AI processing
+        csv_data = selected_df.to_csv(index=False)
+
+        # If dataset is larger than MAX_ROWS, inform user
+        too_large_message = ""
+        if total_rows > MAX_ROWS:
+            too_large_message = f"⚠️ Your dataset has {total_rows} rows. AI can only process {MAX_ROWS} rows at a time. Adjust the range using the timeline."
 
         # AI query
-        query = f"The following CSV data has been uploaded:\n{csv_data}\n\nAnswer this question based on the data: {question}"
+        query = f"""
+        The following CSV data (rows {start_row} to {end_row}) has been uploaded:
+        
+        {csv_data}
+        
+        Answer this question based on the data:
+        {question}
+        """
 
-        # Get response from Gemini AI
+        # Send request to Gemini AI
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(query)
 
-        return jsonify({"response": response.text})
+        return jsonify({"response": response.text, "warning": too_large_message})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
