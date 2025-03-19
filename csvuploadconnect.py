@@ -79,7 +79,7 @@ def ask_question():
         # If dataset is larger than MAX_ROWS, inform user
         too_large_message = ""
         if total_rows > MAX_ROWS:
-            too_large_message = f"⚠️ Your dataset has {total_rows} rows. AI can only process {MAX_ROWS} rows at a time. Adjust the range using the timeline."
+            too_large_message = f"⚠️ Your dataset has {total_rows} rows. For now, we can only process {MAX_ROWS} rows at a time. Adjust the range using the timeline."
 
         # AI query
         query = f"""
@@ -87,8 +87,15 @@ def ask_question():
         
         {csv_data}
         
-        Answer this question based on the data:
-        {question}
+        ### Instructions:
+        - Analyze the data carefully and answer the following question:
+        **{question}**
+        - Present the answer in a well-structured format.
+        - Use bullet points (`-`) for lists.
+        - Use bold (`**`) for important values.
+        - Use subheadings (##) if necessary.
+        - Ensure clarity and avoid unnecessary repetition.
+
         """
 
         # Send request to Gemini AI

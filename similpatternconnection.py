@@ -205,7 +205,6 @@ def extract_shot_number():
         If multiple numbers exist, pick the **most relevant one**.
         If no shot number is found, return "None".
         
-        Output ONLY the number (e.g., "56964") and nothing else.
         """
 
         model = genai.GenerativeModel(MODEL_NAME)
