@@ -33,7 +33,7 @@ llama2_13b_chat = "meta/meta-llama-3-8b-instruct"
 
 llm = Replicate(
     model=llama2_13b_chat,
-    model_kwargs={"temperature": 0.7, "max_new_tokens": 100}
+    model_kwargs={"temperature": 0.7, "max_new_tokens": 300}
 )
 
 # Load JSON file while preserving missing fields
@@ -169,12 +169,19 @@ def ask_question(question: Question):
         # Execute the SQL query
         result = execute_sql_query(data, sql_query)
 
-        print(f"Final Filtered Query Result: {result}")
+        # Step 4: Pass the query **result** back into LLaMA-3 for explanation
+        explanation_prompt = (
+            "Eres un chatbot especializado en fusión nuclear\n"
+            f"Pregunta original: {question.question}\n"
+            "Resultado de la consulta SQL:\n"
+            f"{json.dumps(result, indent=2)}\n\n"
+            "Enseña el comentario como Respuesta, y después explica el resultado de manera clara y concisa para el usuario."
+        )
 
-        # Reset active conversation after SQL execution
-        active_conversation = {}
+        final_response = llm.invoke(input=explanation_prompt).strip()
+        print(f"Final LLM Response: {final_response}")
 
-        return {"answer": result}
+        return {"answer": final_response}
 
     except Exception as e:
         print(f"Error during processing: {e}")
