@@ -25,6 +25,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Load environment variables
 load_dotenv()
 
 # Set up Replicate for LLaMA-2
@@ -33,8 +34,9 @@ llama2_13b_chat = "meta/meta-llama-3-8b-instruct"
 
 llm = Replicate(
     model=llama2_13b_chat,
-    model_kwargs={"temperature": 0.7, "max_new_tokens": 300}
+    model_kwargs={"temperature": 0.7, "max_new_tokens": 100}
 )
+
 # Load Google API Key from .env file
 google_api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=google_api_key)
@@ -70,7 +72,6 @@ def execute_sql_query(data, sql_query):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"SQL Execution Error: {e}")
-
 # Define request model for the API
 class Question(BaseModel):
     question: str
@@ -90,7 +91,8 @@ def ask_question(question: Question):
 
         # If a conversation is ongoing and user is clarifying
         if active_conversation and "extracted_keywords" in active_conversation:
-            user_selected_values = [value.strip() for value in question.question.split(",")]  # Trim spaces
+            # Fix: Extract only the selected value, not the entire phrase
+            user_selected_values = [value.strip().split(":")[-1].strip() for value in question.question.split(",")]    # Trim spaces
             expected_keys = [key for key, value in active_conversation["extracted_keywords"].items() if len(value) > 1]
             
             print(f"[DEBUG] Expected Keys: {expected_keys}")
@@ -165,19 +167,28 @@ def ask_question(question: Question):
         print(f"Raw LLM Response: {response}")
 
         # Extract only the SQL query
-        match = re.search(r"SELECT[\s\S]+", response, re.IGNORECASE)
-        sql_query = match.group(0).strip() if match else None
+        # Extract only the SQL query, handling cases where LLM adds backticks
+        match = re.search(r"```sql\s+(SELECT[\s\S]+?)\s+```", response, re.IGNORECASE)
 
-        if not sql_query:
-            raise HTTPException(status_code=400, detail="Invalid SQL query generated.")
+        if match:
+            sql_query = match.group(1).strip()  # Extracts only the SQL part
+        else:
+            sql_query = response.strip()  # Fallback if no backticks are present
+
+        # Remove any trailing semicolon to prevent SQLite execution error
+        sql_query = sql_query.rstrip(";")
 
         print(f"Cleaned SQL Query: {sql_query}")
 
+        # Execute the SQL query
         result = execute_sql_query(data, sql_query)
-        # Convert result to string and count lines
+
+        print(f"Final Filtered Query Result: {result}")
+
+        # Reset active conversation after SQL execution
+        active_conversation = {}
         result_text = json.dumps(result, indent=2)
         result_lines = result_text.split("\n")
-
         # If the result has more than 5 lines, return it directly without calling Gemini AI
         if len(result_lines) > 5:
             print("[DEBUG] SQL result is too long. Skipping Gemini AI and returning raw result.")
