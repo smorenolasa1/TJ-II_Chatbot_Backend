@@ -46,24 +46,6 @@ with open(file_path, "r", encoding="utf-8") as f:
 data = pd.DataFrame.from_records(raw_json_data)
 data = data.astype(str).replace({"nan": None, "None": None, np.nan: None})
 
-# Helper function to execute SQL queries dynamically
-def execute_sql_query(data, sql_query):
-    try:
-        result = ps.sqldf(sql_query, {"data": data})
-
-        if result.empty:
-            raise HTTPException(status_code=404, detail="No matching records found.")
-
-        cleaned_result = [
-            {k: v for k, v in record.items() if v is not None} 
-            for record in result.to_dict(orient="records")
-        ]
-
-        return cleaned_result
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"SQL Execution Error: {e}")
-
 # Define request model for the API
 class Question(BaseModel):
     question: str
@@ -164,17 +146,21 @@ def ask_question(question: Question):
         if not sql_query:
             raise HTTPException(status_code=400, detail="Invalid SQL query generated.")
 
-        print(f"Cleaned SQL Query: {sql_query}")
-
         # Execute the SQL query
-        result = execute_sql_query(data, sql_query)
+        query_result = execute_sql_query(data, sql_query)
+
+        # Extract result from dictionary
+        if isinstance(query_result, dict) and "answer" in query_result:
+            query_result = query_result["answer"]
+        else:
+            query_result = query_result  # Default fallback
 
         # Step 4: Pass the query **result** back into LLaMA-3 for explanation
         explanation_prompt = (
-            "Eres un chatbot especializado en fusión nuclear\n"
+            "Eres un chatbot especializado en fusión nuclear.\n"
             f"Pregunta original: {question.question}\n"
-            "Resultado de la consulta SQL:\n"
-            f"{json.dumps(result, indent=2)}\n\n"
+            "### Resultado de la consulta SQL:\n"
+            f"{json.dumps(query_result, indent=2)}\n\n"
             "Enseña el comentario como Respuesta, y después explica el resultado de manera clara y concisa para el usuario."
         )
 
@@ -186,4 +172,33 @@ def ask_question(question: Question):
     except Exception as e:
         print(f"Error during processing: {e}")
         active_conversation = {}  # Reset on failure too
-        raise HTTPException(status_code=500, detail=f"Error during processing: {e}")
+        return {"error": "Ocurrió un error inesperado. Intenta reformular tu pregunta."}
+    
+# Helper function to execute SQL queries dynamically
+def execute_sql_query(data, sql_query):
+    try:
+        result = ps.sqldf(sql_query, {"data": data})
+
+        if result.empty:
+            return {"answer": "No se encontraron registros que coincidan con tu búsqueda."}
+
+        cleaned_result = [
+            {k: v for k, v in record.items() if v is not None} 
+            for record in result.to_dict(orient="records")
+        ]
+
+        return {"answer": cleaned_result}  # ✅ Correct return format
+
+    except Exception as e:
+        error_message = str(e)
+        print(f"SQL Error: {error_message}")
+
+        # Enviar el error al LLM para que lo explique
+        error_prompt = (
+            "Soy un chatbot especializado en fusión nuclear. Ocurrió un error al procesar la consulta SQL.\n"
+            f"Error detectado: {error_message}\n\n"
+            "Explícale al usuario de manera clara qué ha ocurrido y sugiere cómo corregirlo."
+        )
+        ai_explanation = llm.invoke(input=error_prompt).strip()
+
+        return {"answer": ai_explanation}  # ✅ Always return in the same structure
