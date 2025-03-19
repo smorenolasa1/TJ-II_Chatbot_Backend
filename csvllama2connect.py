@@ -11,6 +11,7 @@ from langchain_community.llms import Replicate
 from words import process_query  # Import words.py function
 import re
 from fastapi.middleware.cors import CORSMiddleware
+import google.generativeai as genai
 
 nest_asyncio.apply()
 
@@ -24,7 +25,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Load environment variables
 load_dotenv()
 
 # Set up Replicate for LLaMA-2
@@ -35,6 +35,13 @@ llm = Replicate(
     model=llama2_13b_chat,
     model_kwargs={"temperature": 0.7, "max_new_tokens": 300}
 )
+# Load Google API Key from .env file
+google_api_key = os.getenv("GOOGLE_API_KEY")
+genai.configure(api_key=google_api_key)
+
+# Set up Gemini AI model
+MODEL_NAME = "models/gemini-1.5-pro"
+model = genai.GenerativeModel(MODEL_NAME)
 
 # Load JSON file while preserving missing fields
 file_path = "data/PARAMETROS_TJ2_model_time.json"
@@ -166,19 +173,26 @@ def ask_question(question: Question):
 
         print(f"Cleaned SQL Query: {sql_query}")
 
-        # Execute the SQL query
         result = execute_sql_query(data, sql_query)
+        # Convert result to string and count lines
+        result_text = json.dumps(result, indent=2)
+        result_lines = result_text.split("\n")
 
-        # Step 4: Pass the query **result** back into LLaMA-3 for explanation
+        # If the result has more than 5 lines, return it directly without calling Gemini AI
+        if len(result_lines) > 5:
+            print("[DEBUG] SQL result is too long. Skipping Gemini AI and returning raw result.")
+            return {"answer": result}
+
+        # Otherwise, generate explanation with Gemini AI
         explanation_prompt = (
             "Eres un chatbot especializado en fusión nuclear\n"
             f"Pregunta original: {question.question}\n"
             "Resultado de la consulta SQL:\n"
-            f"{json.dumps(result, indent=2)}\n\n"
+            f"{result_text}\n\n"
             "Enseña el comentario como Respuesta, y después explica el resultado de manera clara y concisa para el usuario."
         )
 
-        final_response = llm.invoke(input=explanation_prompt).strip()
+        final_response = model.generate_content(explanation_prompt).text.strip()
         print(f"Final LLM Response: {final_response}")
 
         return {"answer": final_response}
