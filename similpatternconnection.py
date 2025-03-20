@@ -160,7 +160,7 @@ def ask_gemini():
         The user asks: "{question}"
 
         Answer clearly in plain text format without using asterisks, markdown, or extra formatting.
-        Use bullet points when listing similarities.
+        Use bullet points when listing similarities and the confidence level.
         """
 
         print(f"📡 Sending prompt to Gemini: {prompt[:200]}...")
@@ -201,9 +201,10 @@ def extract_shot_number():
         The user provided the following query related to plasma fusion shots:
         "{user_query}"
         
-        Identify the **shot number** they are referring to.
-        If multiple numbers exist, pick the **most relevant one**.
+        Identify the shot number they are referring to.
+        If multiple numbers exist, pick the most relevant one.
         If no shot number is found, return "None".
+        Return ONLY the shot number without any additional text.
         
         """
 
