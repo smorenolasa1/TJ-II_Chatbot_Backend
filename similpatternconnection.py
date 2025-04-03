@@ -5,10 +5,11 @@ import matplotlib
 matplotlib.use('Agg')  # Non-GUI backend for compatibility
 import matplotlib.pyplot as plt
 import google.generativeai as genai
-from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
-import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import requests
 import re
 
 # Load environment variables
@@ -19,9 +20,17 @@ google_api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=google_api_key)
 MODEL_NAME = "models/gemini-1.5-pro"
 
-# Flask setup
-app = Flask(__name__)
-CORS(app)
+# FastAPI setup
+app = FastAPI()
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Directory for storing plots
 PLOT_DIR = "static"
@@ -79,7 +88,7 @@ def get_similar_signals(shot_number):
     except requests.exceptions.RequestException as e:
         print(f"❌ Error connecting to Servlet6: {e}")
         return []
-    
+
 # Function to fetch and plot signals
 def plot_signals(shot_number, similar_shots):
     server_url_signal = "http://localhost:8080/Servlet7"
@@ -125,25 +134,25 @@ def clean_ai_response(text):
     text = re.sub(r"\n\s*\n", "\n", text)  # Remove extra newlines
     return text.strip()
 
-@app.route("/ask_gemini", methods=["POST"])
-def ask_gemini():
+@app.post("/ask_gemini")
+async def ask_gemini(request: Request):
     try:
-        data = request.get_json()
+        data = await request.json()
         shot_number = data.get("shot_number", "").strip()
         question = data.get("question", "").strip()
 
         if not shot_number:
-            return jsonify({"error": "Missing shot_number"}), 400
+            raise HTTPException(status_code=400, detail="Missing shot_number")
 
         if not question:
-            return jsonify({"error": "Missing question"}), 400
+            raise HTTPException(status_code=400, detail="Missing question")
 
         print(f"🔹 Extracted shot_number: {shot_number}, question: {question}")
 
         # ✅ Fetch similar signals
         similar_shots = get_similar_signals(shot_number)
         if not similar_shots:
-            return jsonify({"error": "No similar signals found."}), 400
+            raise HTTPException(status_code=400, detail="No similar signals found.")
 
         print(f"✅ Similar shots retrieved: {similar_shots}")
 
@@ -174,25 +183,25 @@ def ask_gemini():
 
         # ✅ Generate Plot
         plot_path = plot_signals(shot_number, similar_shots)
-        plot_url = f"http://localhost:5000/static/{os.path.basename(plot_path)}"
+        plot_url = f"http://localhost:5004/static/{os.path.basename(plot_path)}"
 
-        return jsonify({
+        return JSONResponse(content={
             "response": cleaned_response,
             "plot_url": plot_url
         })
 
     except Exception as e:
         print(f"❌ ERROR in /ask_gemini: {str(e)}")
-        return jsonify({"error": f"Server error: {str(e)}"}), 500   
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
-@app.route("/extract_shot_number", methods=["POST"])
-def extract_shot_number():
+@app.post("/extract_shot_number")
+async def extract_shot_number(request: Request):
     try:
-        data = request.get_json()
+        data = await request.json()
         user_query = data.get("user_query", "").strip()
 
         if not user_query:
-            return jsonify({"error": "Missing user query"}), 400
+            raise HTTPException(status_code=400, detail="Missing user query")
 
         print(f"📡 Extracting shot number from query: {user_query}")
 
@@ -216,17 +225,15 @@ def extract_shot_number():
         print(f"✅ Extracted Shot Number: {extracted_shot_number}")
 
         if not extracted_shot_number.isdigit():
-            return jsonify({"shot_number": None, "message": "No valid shot number found."}), 200
+            return JSONResponse(content={"shot_number": None, "message": "No valid shot number found."}, status_code=200)
 
-        return jsonify({"shot_number": extracted_shot_number})
+        return JSONResponse(content={"shot_number": extracted_shot_number})
 
     except Exception as e:
         print(f"❌ ERROR in /extract_shot_number: {str(e)}")
-        return jsonify({"error": f"Server error: {str(e)}"}), 500
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
-@app.route("/static/<filename>")
-def serve_plot(filename):
-    return send_file(os.path.join(PLOT_DIR, filename), mimetype="image/png")
-
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+@app.get("/static/{filename}")
+async def serve_plot(filename: str):
+    file_path = os.path.join(PLOT_DIR, filename)
+    return FileResponse(file_path, media_type="image/png")

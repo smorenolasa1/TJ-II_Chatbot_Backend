@@ -1,10 +1,10 @@
 To run the streamlit app:
 1. Install the requirements
 python -m spacy download es_core_news_sm
-2. uvicorn csvllama2:app --reload
-3. streamlit run mixedchat.py
+2. chmod +x run_all_fastapi.sh
+3. ./run_all_fastapi.sh #Launch all FastAPI apps
+4. pkill -f "uvicorn" #Kill All Servers
 
-Run similpatternconneciton.py and shotllama2connection.py
 
 Para añadir la ruta del programa de client y server.bat
 nano ~/.zshrc
