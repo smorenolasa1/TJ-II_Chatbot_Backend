@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import requests
 import re
+import json
 
 # Load environment variables
 load_dotenv()
@@ -37,21 +38,22 @@ PLOT_DIR = "static"
 os.makedirs(PLOT_DIR, exist_ok=True)
 
 # Function to fetch similar signals
-def get_similar_signals(shot_number):
+# Function to fetch similar signals
+def get_similar_signals(shot_number, database_name):  # ✅ Accepts database_name as a parameter
     server_url_similar = "http://localhost:8080/Servlet6"
 
-    # ✅ Restore original request format
+    # ✅ Use the provided database_name
     params_similar = {
         "dbDirectory": "primitive_DB",
-        "dbName": "Densidad2_",
-        "signalName": "Densidad2_",  # Ensure correct signal name
+        "dbName": "TESTING",     
+        "signalName": database_name,  # ✅ Dynamic value
         "shotNumber": shot_number,
         "tIni": "0.0",
         "tFin": "0.0",
         "match": "32"
     }
 
-    print(f"📡 Fetching similar signals for shot: {shot_number}")
+    print(f"📡 Fetching similar signals for shot: {shot_number} from database: {database_name}")
 
     try:
         response_similar = requests.get(server_url_similar, params=params_similar)
@@ -79,6 +81,7 @@ def get_similar_signals(shot_number):
             ]
 
             print(f"✅ Parsed Similar Shots: {similar_shots}")
+            print(f"📡 Request to Servlet6: {server_url_similar} with params {params_similar}")
             return similar_shots[:4]  # Return top 4 similar shots
 
         except ValueError as e:
@@ -90,19 +93,28 @@ def get_similar_signals(shot_number):
         return []
 
 # Function to fetch and plot signals
-def plot_signals(shot_number, similar_shots):
+def plot_signals(shot_number, similar_shots, signal_name):
     server_url_signal = "http://localhost:8080/Servlet7"
-    signal_name = "Densidad2_"
     all_shots = [shot_number] + [shot[1] for shot in similar_shots]
 
     plt.figure(figsize=(10, 5))
 
+    print(f"📡 Generating plot for signal: {signal_name}")
     for shot in all_shots:
-        params_signal = {"signalName": signal_name, "shotNumber": shot}
+        params_signal = {
+            "dbDirectory": "primitive_DB",  
+            "dbName": signal_name,          # ✅ Debe ser el nombre correcto de la base de datos
+            "signalName": signal_name,      # ✅ Debe ser el nombre correcto de la base de datos
+            "shotNumber": shot
+        }
+
+        print(f"📡 Request to Servlet7: {server_url_signal} with params {params_signal}")  # ✅ DEBUG PRINT
+
         response_signal = requests.get(server_url_signal, params=params_signal)
 
         if response_signal.status_code == 200:
             response_text = response_signal.text.strip()
+            print(f"🌟 Response from Servlet7 for shot {shot}: {response_text[:200]}")  # Display first 200 characters
             lines = response_text.split("\n")
             times, amplitudes = [], []
             for line in lines:
@@ -120,7 +132,8 @@ def plot_signals(shot_number, similar_shots):
     plt.title(f"Signal {signal_name} and Similar Signals")
     plt.legend()
 
-    plot_filename = f"plot_{shot_number}.png"
+    # 🔑 Ahora incluye tanto la base de datos como el número de descarga en el nombre del archivo
+    plot_filename = f"plot_{signal_name}_{shot_number}.png"
     plot_path = os.path.join(PLOT_DIR, plot_filename)
     plt.savefig(plot_path, dpi=300)
     plt.close()
@@ -138,19 +151,19 @@ def clean_ai_response(text):
 async def ask_gemini(request: Request):
     try:
         data = await request.json()
-        shot_number = data.get("shot_number", "").strip()
-        question = data.get("question", "").strip()
+        print(f"🔍 Incoming Data: {data}")
+        # Convert shot_number to a string before using .strip()
+        shot_number = str(data.get("shot_number", "")).strip()
+        question = str(data.get("question", "")).strip()
+        database_name = str(data.get("database_name", "")).strip()
 
-        if not shot_number:
-            raise HTTPException(status_code=400, detail="Missing shot_number")
+        if not shot_number or not question or not database_name:
+            raise HTTPException(status_code=400, detail="Missing required data")
 
-        if not question:
-            raise HTTPException(status_code=400, detail="Missing question")
-
-        print(f"🔹 Extracted shot_number: {shot_number}, question: {question}")
+        print(f"🔹 Extracted shot_number: {shot_number}, question: {question}, database_name: {database_name}")
 
         # ✅ Fetch similar signals
-        similar_shots = get_similar_signals(shot_number)
+        similar_shots = get_similar_signals(shot_number, database_name)
         if not similar_shots:
             raise HTTPException(status_code=400, detail="No similar signals found.")
 
@@ -180,9 +193,9 @@ async def ask_gemini(request: Request):
         cleaned_response = clean_ai_response(response.text)
 
         print(f"✅ Cleaned AI Response:\n{cleaned_response}")
-
+        signal_name = database_name
         # ✅ Generate Plot
-        plot_path = plot_signals(shot_number, similar_shots)
+        plot_path = plot_signals(shot_number, similar_shots, signal_name)
         plot_url = f"http://localhost:5004/static/{os.path.basename(plot_path)}"
 
         return JSONResponse(content={
@@ -193,9 +206,10 @@ async def ask_gemini(request: Request):
     except Exception as e:
         print(f"❌ ERROR in /ask_gemini: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
-
-@app.post("/extract_shot_number")
-async def extract_shot_number(request: Request):
+    
+        
+@app.post("/extract_shot_number_and_database")
+async def extract_shot_number_and_database(request: Request):
     try:
         data = await request.json()
         user_query = data.get("user_query", "").strip()
@@ -203,36 +217,66 @@ async def extract_shot_number(request: Request):
         if not user_query:
             raise HTTPException(status_code=400, detail="Missing user query")
 
-        print(f"📡 Extracting shot number from query: {user_query}")
+        print(f"📡 Extracting shot number and database name from query: {user_query}")
 
-        # ✅ Use Gemini AI to extract the correct shot number
+        # ✅ Improved Prompt
         prompt = f"""
         The user provided the following query related to plasma fusion shots:
         "{user_query}"
         
-        Identify the shot number they are referring to.
-        If multiple numbers exist, pick the most relevant one.
-        If no shot number is found, return "None".
-        Return ONLY the shot number without any additional text.
+        Identify the shot number and the database name they are referring to.
+        Possible database names are: "HALFAC4" and "Densidad2_".
         
+        Return the result as a valid JSON object like this:
+
+        {{
+            "shot_number": "<shot_number>",
+            "database_name": "<database_name>"
+        }}
+
+        If no valid shot number or database name is found, return:
+
+        {{
+            "shot_number": null,
+            "database_name": null
+        }}
+
+        Ensure the output is strictly JSON formatted and nothing else.
         """
 
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
 
-        extracted_shot_number = response.text.strip()
+        # ✅ Log the raw response before parsing
+        raw_response = response.text.strip()
+        print(f"🌟 Raw Response from Gemini: {raw_response}")
 
-        print(f"✅ Extracted Shot Number: {extracted_shot_number}")
+        # ✅ Remove markdown formatting (triple backticks)
+        cleaned_response = re.sub(r"```json\n|```", "", raw_response).strip()
+        print(f"✅ Cleaned Response: {cleaned_response}")
 
-        if not extracted_shot_number.isdigit():
-            return JSONResponse(content={"shot_number": None, "message": "No valid shot number found."}, status_code=200)
+        # ✅ Parse the cleaned response as JSON
+        try:
+            extracted_data = json.loads(cleaned_response)
+            shot_number = extracted_data.get("shot_number")
+            database_name = extracted_data.get("database_name")
 
-        return JSONResponse(content={"shot_number": extracted_shot_number})
+            print(f"✅ Extracted Shot Number: {shot_number}")
+            print(f"✅ Extracted Database Name: {database_name}")
+
+            if not shot_number or not database_name:
+                return JSONResponse(content={"error": "Shot number or database name not found"}, status_code=200)
+
+            return JSONResponse(content={"shot_number": shot_number, "database_name": database_name})
+
+        except json.JSONDecodeError as e:
+            print(f"❌ Error parsing Gemini response: {str(e)}")
+            return JSONResponse(content={"error": "Failed to parse Gemini response"}, status_code=500)
 
     except Exception as e:
-        print(f"❌ ERROR in /extract_shot_number: {str(e)}")
+        print(f"❌ ERROR in /extract_shot_number_and_database: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
-
+    
 @app.get("/static/{filename}")
 async def serve_plot(filename: str):
     file_path = os.path.join(PLOT_DIR, filename)

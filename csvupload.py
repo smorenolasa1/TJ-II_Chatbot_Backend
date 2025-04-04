@@ -55,7 +55,7 @@ def main():
                     csv_data = df.to_csv(index=False)
 
                     # Prepare query with context
-                    query = f"The following CSV data has been uploaded:\n{csv_data}\n\nAnswer this question based on the data: {user_question}"
+                    query = f"The following CSV data has been uploaded:\n{csv_data}\n\nAnswer this question based on the data: {user_question}, and respond to the user in the same language as the question."
 
                     # Send request to Gemini AI
                     model = genai.GenerativeModel(model_name)
