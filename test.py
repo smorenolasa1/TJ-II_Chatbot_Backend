@@ -40,7 +40,7 @@ os.makedirs(PLOT_DIR, exist_ok=True)
 # Function to fetch similar signals
 # Function to fetch similar signals
 def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):  # ✅ Accepts database_name as a parameter
-    if tIni not in ["", "0.0", None] and tFin not in ["", "0.0", None]:
+    if tIni and tFin:
         # Use Servlet4 when tIni and tFin are provided
         server_url_similar = "http://localhost:8080/Servlet4"
         params_similar = {
@@ -108,10 +108,7 @@ def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):  # �
                 ]
 
             print(f"✅ Parsed Similar Shots: {similar_shots}")
-            if "Servlet4" in server_url_similar:
-                print(f"📡 Request to Servlet4: {server_url_similar} with params {params_similar}")
-            else:
-                print(f"📡 Request to Servlet6: {server_url_similar} with params {params_similar}")
+            print(f"📡 Request to Servlet6: {server_url_similar} with params {params_similar}")
             return similar_shots[:4]  # Return top 4 similar shots
 
         except ValueError as e:
@@ -123,8 +120,7 @@ def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):  # �
         return []
 
 # Function to fetch and plot signals
-# Function to fetch and plot signals (adapted to use tIni/tFin ranges if available)
-def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
+def plot_signals(shot_number, similar_shots, signal_name):
     server_url_signal = "http://localhost:8080/Servlet7"
     similar_only = [shot[1] for shot in similar_shots if shot[1] != shot_number]
     all_shots = [shot_number] + similar_only
@@ -134,39 +130,26 @@ def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
     for shot in all_shots:
         params_signal = {
             "dbDirectory": "primitive_DB",  
-            "dbName": signal_name,
-            "signalName": signal_name,
+            "dbName": signal_name,          # ✅ Debe ser el nombre correcto de la base de datos
+            "signalName": signal_name,      # ✅ Debe ser el nombre correcto de la base de datos
             "shotNumber": shot
         }
 
-        print(f"📡 Request to Servlet7: {server_url_signal} with params {params_signal}")
+        print(f"📡 Request to Servlet7: {server_url_signal} with params {params_signal}")  # ✅ DEBUG PRINT
 
         response_signal = requests.get(server_url_signal, params=params_signal)
 
         if response_signal.status_code == 200:
             response_text = response_signal.text.strip()
-            print(f"🌟 Response from Servlet7 for shot {shot}: {response_text[:200]}")
+            print(f"🌟 Response from Servlet7 for shot {shot}: {response_text[:200]}")  # Display first 200 characters
             lines = response_text.split("\n")
             times, amplitudes = [], []
-
             for line in lines:
                 parts = line.split(",")
                 if len(parts) == 2:
-                    try:
-                        t, amp = float(parts[0]), float(parts[1])
-                        times.append(t)
-                        amplitudes.append(amp)
-                    except ValueError:
-                        continue
-
-            # ✅ Apply pattern range filter if provided
-            if pattern_ranges and shot in pattern_ranges:
-                t_min, t_max = pattern_ranges[shot]
-                filtered_points = [(t, a) for t, a in zip(times, amplitudes) if t_min <= t <= t_max]
-                if filtered_points:
-                    times, amplitudes = zip(*filtered_points)
-                else:
-                    continue  # Skip this shot if no data in range
+                    t, amp = float(parts[0]), float(parts[1])
+                    times.append(t)
+                    amplitudes.append(amp)
 
             if len(amplitudes) > 0:
                 plt.plot(times, amplitudes, label=f"Shot {shot}", linewidth=0.5)
@@ -176,15 +159,14 @@ def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
     plt.title(f"Signal {signal_name} and Similar Signals")
     plt.legend()
 
-    # 🔑 Create unique filename to avoid caching
-    import uuid
-    unique_id = uuid.uuid4().hex[:6]
-    plot_filename = f"plot_{signal_name}_{shot_number}_{unique_id}.png"
+    # 🔑 Ahora incluye tanto la base de datos como el número de descarga en el nombre del archivo
+    plot_filename = f"plot_{signal_name}_{shot_number}.png"
     plot_path = os.path.join(PLOT_DIR, plot_filename)
     plt.savefig(plot_path, dpi=300)
     plt.close()
 
     return plot_path
+
 def clean_ai_response(text):
     """Removes markdown formatting like **bold**, *italic*, and converts it to plain text."""
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)  # Remove bold
@@ -317,12 +299,7 @@ async def extract_shot_number_and_database(request: Request):
             if not shot_number or not database_name:
                 return JSONResponse(content={"error": "Shot number or database name not found"}, status_code=200)
 
-            return JSONResponse(content={
-                "shot_number": shot_number,
-                "database_name": database_name,
-                "tIni": extracted_data.get("tIni", "0.0"),
-                "tFin": extracted_data.get("tFin", "0.0")
-            })
+            return JSONResponse(content={"shot_number": shot_number, "database_name": database_name})
 
         except json.JSONDecodeError as e:
             print(f"❌ Error parsing Gemini response: {str(e)}")
