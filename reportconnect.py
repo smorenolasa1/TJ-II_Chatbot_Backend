@@ -1,74 +1,124 @@
-import os
-import google.generativeai as genai
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
+from datetime import datetime
+import os, json, textwrap
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from docx import Document
+from docx.shared import Pt
 from dotenv import load_dotenv
-from typing import List, Dict, Any
+import google.generativeai as genai
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
-# Initialize FastAPI app
+load_dotenv()
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+MODEL_NAME = "models/gemini-1.5-pro"
+
+
 app = FastAPI()
-
-# Enable CORS for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # You can restrict this to your frontend domain
+    allow_origins=["*"],  # O restringe según dominio en producción
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+CONTEXT_DIR = "context"
+STATIC_DIR = "static"
+os.makedirs(CONTEXT_DIR, exist_ok=True)
+os.makedirs(STATIC_DIR, exist_ok=True)
 
-# Load environment variables
-load_dotenv()
+def clean_ai_response(text):
+    return text.strip()
 
-# Configure Google API Key
-google_api_key = os.getenv("GOOGLE_API_KEY")
-genai.configure(api_key=google_api_key)
+@app.get("/generate_report")
+def generate_report():
+    files = {
+        "SimilPatternTool": "similpattern_history.json",
+        "ShotLlama2": "shotllama2_history.json",
+        "CsvUpdate": "csvupdate_history.json"
+    }
 
-# Use the correct model
-MODEL_NAME = "models/gemini-1.5-pro"
+    report_sections = []
+    for section_name, filename in files.items():
+        path = os.path.join(CONTEXT_DIR, filename)
+        if not os.path.exists(path):
+            continue
 
-@app.post("/generate_report")
-async def generate_report(request: Request):
-    try:
-        data = await request.json()
+        with open(path, "r", encoding="utf-8") as f:
+            entries = json.load(f)
 
-        # Ensure we have interactions to summarize
-        interactions: List[Dict[str, Any]] = data.get("interactions", [])
-        if not interactions:
-            raise HTTPException(status_code=400, detail="No interactions provided")
+        if not entries:
+            continue
 
-        # Create a structured input for Gemini AI
-        interactions_text = "\n\n".join([
-            f"Interaction {index + 1}:\n"
-            f"Tool Used: {interaction.get('tool', 'Unknown')}\n"
-            f"User Query: {interaction.get('query', 'N/A')}\n"
-            f"AI Response: {interaction.get('response', 'N/A')}\n"
-            f"Plot URL: {interaction.get('plot', 'N/A')}\n"
-            for index, interaction in enumerate(interactions)
-        ])
+        section_text = f"{section_name}:\n"
+        for i, entry in enumerate(entries):
+            section_text += f"\nQuestion {i+1}: {entry.get('question', '')}\n"
+            if "pattern_summary" in entry and entry["pattern_summary"]:
+                section_text += f"Pattern Summary:\n{entry['pattern_summary']}\n"
+            if "response" in entry and entry["response"]:
+                section_text += f"AI Response:\n{entry['response']}\n"
+            if "plot_path" in entry and entry["plot_path"]:
+                section_text += f"Plot Path: {entry['plot_path']}\n"
 
-        prompt = f"""
-        You are an AI model designed to generate daily reports based on interactions between the user and various tools.
-        
-        The following are the interactions for the day:
+        report_sections.append(section_text)
 
-        {interactions_text}
+    if not report_sections:
+        return JSONResponse({"message": "No context to generate report."}, status_code=200)
 
-        Please generate a detailed, structured report summarizing the interactions. The report should include:
-        - A list of all user queries and their corresponding responses.
-        - Details of the plots generated, if any.
-        - Any important insights or conclusions that can be derived from the interactions.
-        - Present the report in a clear, organized, and readable format.
-        """
+    combined_report = "\n\n".join(report_sections)
+    prompt = f"""
+    You are a scientific assistant generating a structured report based on plasma fusion tools.
+    Write a well-formatted report with clear sections, and no extra commentary or formatting hints.
 
-        # Send the prompt to Gemini AI
-        model = genai.GenerativeModel(MODEL_NAME)
-        response = model.generate_content(prompt)
-        generated_report = response.text.strip()
+    {combined_report}
+    """
 
-        return JSONResponse(content={"report": generated_report})
+    model = genai.GenerativeModel(MODEL_NAME)
+    response = model.generate_content(prompt)
+    cleaned = clean_ai_response(response.text)
 
-    except Exception as e:
-        print(f"❌ Error in /generate_report: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    pdf_filename = f"report_{timestamp}.pdf"
+    docx_filename = f"report_{timestamp}.docx"
+    pdf_path = os.path.join(STATIC_DIR, pdf_filename)
+    docx_path = os.path.join(STATIC_DIR, docx_filename)
+
+    # PDF
+    c = canvas.Canvas(pdf_path, pagesize=letter)
+    text = c.beginText(40, 750)
+    text.setFont("Helvetica", 11)
+    for line in cleaned.split("\n"):
+        for wrap in textwrap.wrap(line, width=90):
+            text.textLine(wrap)
+    c.drawText(text)
+    c.showPage()
+    c.save()
+
+    # DOCX
+    doc = Document()
+    doc.add_heading("Fusion Analysis Report", 0)
+    for paragraph in cleaned.split("\n\n"):
+        p = doc.add_paragraph(paragraph.strip())
+        p.style.font.size = Pt(11)
+    doc.save(docx_path)
+    print("✅ Returning report URLs:")
+    print(f"PDF: http://localhost:5005/static/{pdf_filename}")
+    print(f"Word: http://localhost:5005/static/{docx_filename}")
+    return {
+        "pdf_url": f"http://localhost:5005/static/{pdf_filename}",
+        "word_url": f"http://localhost:5005/static/{docx_filename}"
+    }
+
+@app.post("/reset_context")
+def reset_context():
+    deleted = []
+    for file in ["similpattern_history.json", "shotllama2_history.json", "csvupdate_history.json"]:
+        path = os.path.join(CONTEXT_DIR, file)
+        if os.path.exists(path):
+            os.remove(path)
+            deleted.append(file)
+    return {"message": f"Deleted: {deleted}"}
+
+app.mount("/static", StaticFiles(directory="static"), name="static")

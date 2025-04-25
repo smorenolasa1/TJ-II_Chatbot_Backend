@@ -1,6 +1,8 @@
 pip==24.0
 setuptools==58.2.0
 wheel
+reportlab
+python-docx
 
 # Core Libraries
 requests

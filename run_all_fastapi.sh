@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Run all FastAPI servers in separate background processes
-
 echo "🚀 Starting csvuploadconnect.py on port 5001"
 uvicorn csvuploadconnect:app --host 0.0.0.0 --port 5001 --reload &
 
@@ -13,5 +11,8 @@ uvicorn shotllama2connect:app --host 0.0.0.0 --port 5003 --reload &
 
 echo "🚀 Starting similpatternconnection.py on port 5004"
 uvicorn similpatternconnection:app --host 0.0.0.0 --port 5004 --reload &
+
+echo "📝 Starting reportconnect.py on port 5005"
+uvicorn reportconnect:app --host 0.0.0.0 --port 5005 --reload &
 
 echo "✅ All FastAPI servers started!"
