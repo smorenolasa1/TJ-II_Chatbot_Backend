@@ -138,7 +138,11 @@ Here is the raw input:
                 story.append(Spacer(1, 24))
         elif all(line.strip().startswith("|") and line.strip().endswith("|") for line in lines):
             # Table detected
-            data = [line.strip("|").split("|") for line in lines]
+            data = [
+                line.strip("|").split("|")
+                for line in lines
+                if not all(cell.strip("- ") == "" for cell in line.strip("|").split("|"))  # descarta fila de --- separadora
+            ]
             table = Table(data)
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4B72B0")),
