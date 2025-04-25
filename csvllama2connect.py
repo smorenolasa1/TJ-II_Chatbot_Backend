@@ -12,6 +12,11 @@ from words import process_query  # Import words.py function
 import re
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
+import os
+import json
+
+CONTEXT_DIR = "context"
+os.makedirs(CONTEXT_DIR, exist_ok=True)
 
 nest_asyncio.apply()
 
@@ -55,6 +60,37 @@ with open(file_path, "r", encoding="utf-8") as f:
 data = pd.DataFrame.from_records(raw_json_data)
 data = data.astype(str).replace({"nan": None, "None": None, np.nan: None})
 
+def save_csvupdate_context(question, response=None):
+    CONTEXT_DIR = "context"
+    os.makedirs(CONTEXT_DIR, exist_ok=True)
+    context_file = os.path.join(CONTEXT_DIR, "csvupdate_history.json")
+
+    print("📝 Saving CSV context...")
+    print(f"📌 Question: {question}")
+    print(f"📌 Response: {response}")
+
+    new_entry = {
+        "question": question,
+        "response": response
+    }
+
+    try:
+        if os.path.exists(context_file):
+            print("📂 File exists, loading...")
+            with open(context_file, "r", encoding="utf-8") as f:
+                history = json.load(f)
+        else:
+            print("📁 File does not exist, creating new...")
+            history = []
+
+        history.append(new_entry)
+
+        with open(context_file, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2)
+        print(f"✅ CSV context saved to {context_file}")
+
+    except Exception as e:
+        print(f"❌ Error saving CSV context: {e}")
 # Helper function to execute SQL queries dynamically
 def execute_sql_query(data, sql_query):
     try:
@@ -205,7 +241,11 @@ def ask_question(question: Question):
 
         final_response = model.generate_content(explanation_prompt).text.strip()
         print(f"Final LLM Response: {final_response}")
-
+        # ✅ Save context
+        save_csvupdate_context(
+            question=question.question,
+            response=final_response
+        )
         return {"answer": final_response}
 
     except Exception as e:

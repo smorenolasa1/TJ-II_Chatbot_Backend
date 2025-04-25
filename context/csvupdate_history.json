@@ -1,0 +1,6 @@
+[
+  {
+    "question": "cuantas descargas se hicieron en 2013?",
+    "response": "Respuesta: Hubo 3749 descargas en 2013.\n\nExplicaci\u00f3n: La consulta SQL cont\u00f3 el n\u00famero de descargas (representado por la columna `N_DESCARGA`) realizadas durante el a\u00f1o 2013. El resultado, 3749, indica el n\u00famero total de descargas registradas en ese periodo."
+  }
+]
