@@ -11,6 +11,14 @@ from docx import Document
 from docx.shared import Pt, Inches
 from dotenv import load_dotenv
 import google.generativeai as genai
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Image
+from docx import Document
+from docx.shared import Inches, Pt
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 # Configuración inicial
 load_dotenv()
@@ -90,8 +98,14 @@ Here is the raw input:
     # ➤ DOCX
     doc = Document()
     doc.add_heading("Fusion Data Analysis Report", 0)
+
     for block in cleaned.split("\n\n"):
         lines = block.strip().split("\n")
+        # Ignorar bloques vacíos
+        if not lines:
+            continue
+
+        # Si el primer elemento es una imagen
         if lines[0].lower().startswith("plot:"):
             plot_path = lines[0].split(":", 1)[1].strip()
             full_path = os.path.join(plot_path)
@@ -99,31 +113,51 @@ Here is the raw input:
                 doc.add_picture(full_path, width=Inches(5.5))
         else:
             for line in lines:
-                doc.add_paragraph(line.strip(), style='Normal')
+                if not line.lower().startswith("query:"):
+                    doc.add_paragraph(line.strip(), style='Normal')
+
     doc.save(docx_path)
 
     # ➤ PDF
-    c = canvas.Canvas(pdf_path, pagesize=letter)
-    text = c.beginText(50, 750)
-    text.setFont("Helvetica", 12)
+    pdf_doc = SimpleDocTemplate(pdf_path, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
+    styles = getSampleStyleSheet()
+    story = []
 
     for block in cleaned.split("\n\n"):
-        for line in block.strip().split("\n"):
-            if line.lower().startswith("plot:"):
-                c.drawText(text)
-                text = c.beginText(50, text.getY() - 20)
-                plot_path = line.split(":", 1)[1].strip()
-                full_path = os.path.join(plot_path)
-                if os.path.exists(full_path):
-                    c.drawImage(ImageReader(full_path), 50, text.getY() - 220, width=500, height=200)
-                    text.moveCursor(0, -220)
-            else:
-                for wrapped in textwrap.wrap(line, width=90):
-                    text.textLine(wrapped)
-        text.textLine("")
-        text.moveCursor(0, -10)
-    c.drawText(text)
-    c.save()
+        lines = block.strip().split("\n")
+        if not lines:
+            continue
+
+        if lines[0].lower().startswith("plot:"):
+            plot_path = lines[0].split(":", 1)[1].strip()
+            full_path = os.path.join(plot_path)
+            if os.path.exists(full_path):
+                story.append(Spacer(1, 12))
+                img = Image(full_path, width=500, height=200)
+                story.append(img)
+                story.append(Spacer(1, 24))
+        elif all(line.strip().startswith("|") and line.strip().endswith("|") for line in lines):
+            # Table detected
+            data = [line.strip("|").split("|") for line in lines]
+            table = Table(data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#4B72B0")),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)
+            ]))
+            story.append(table)
+            story.append(Spacer(1, 16))
+        else:
+            for line in lines:
+                if not line.lower().startswith("query:"):
+                    story.append(Paragraph(line.strip(), styles["Normal"]))
+            story.append(Spacer(1, 12))
+
+    pdf_doc.build(story)
 
     print("✅ Returning report URLs:")
     print(f"PDF: http://localhost:5005/static/{pdf_filename}")
