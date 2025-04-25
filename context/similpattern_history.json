@@ -1,0 +1,9 @@
+[
+  {
+    "timestamp": "2025-04-25T10:06:47.022975",
+    "question": "give me the 4 most similar signals to discharge 56900 in densidad from 1020 to 1027",
+    "response": "The following discharges show similar densidad patterns to discharge 56900 within the requested time range (1020 to 1027), sorted by similarity confidence:\nThe analysis considered a wider time range than initially specified by the user to identify matching patterns which might extend beyond the strict boundaries of [1020, 1027].  The reported intervals [tIni, tFin] represent the actual matched pattern duration.\n\u2022 Confidence: 1.0000 - Shot: 56900 - Interval: [1020.018, 1030.586054] (Reference discharge)\n\u2022 Confidence: 0.9768 - Shot: 56965 - Interval: [1020.068, 1030.634406]\n\u2022 Confidence: 0.9730 - Shot: 56966 - Interval: [1025.3512, 1035.9177280000001]\n\u2022 Confidence: 0.9597 - Shot: 56911 - Interval: [1289.5037, 1300.071815]\nNote that while discharge 56911 exhibits a similar pattern, it occurs at a significantly later time interval than the others. This might warrant further investigation depending on the specific research context.",
+    "plot_path": "static/plot_Densidad2__56900_e1c987.png",
+    "pattern_summary": "1,0000 - 56900 - [1020,018 , 1030,586054]\n0,9768 - 56965 - [1020,068 , 1030,634406]\n0,9730 - 56966 - [1025,3512 , 1035,9177280000001]\n0,9597 - 56911 - [1289,5037 , 1300,071815]"
+  }
+]

@@ -12,6 +12,12 @@ from dotenv import load_dotenv
 import requests
 import re
 import json
+import json
+import os
+from datetime import datetime
+
+CONTEXT_DIR = "context"
+os.makedirs(CONTEXT_DIR, exist_ok=True)
 
 # Load environment variables
 load_dotenv()
@@ -37,11 +43,48 @@ app.add_middleware(
 PLOT_DIR = "static"
 os.makedirs(PLOT_DIR, exist_ok=True)
 
+def save_similpattern_context(question, plot_path=None, pattern_summary=None, similar_shots=None):
+    context_file = os.path.join(CONTEXT_DIR, "similpattern_history.json")
+
+    if pattern_summary:
+        summary = pattern_summary
+    elif similar_shots and len(similar_shots[0]) == 2:
+        # Format fallback summary from Servlet6
+        summary = "\n".join([
+            f"{conf:.4f}".replace(".", ",") + f" - {shot}"
+            for conf, shot in similar_shots
+        ])
+    else:
+        summary = None
+
+    new_entry = {
+        "question": question,
+        "plot_path": plot_path,
+        "pattern_summary": summary
+    }
+
+    try:
+        if os.path.exists(context_file):
+            with open(context_file, "r", encoding="utf-8") as f:
+                history = json.load(f)
+        else:
+            history = []
+
+        history.append(new_entry)
+
+        with open(context_file, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2)
+
+        print(f"✅ Context updated in {context_file}")
+
+    except Exception as e:
+        print(f"❌ Error saving context: {e}")
+        
 # Function to fetch similar signals
-# Function to fetch similar signals
-def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):  # ✅ Accepts database_name as a parameter
-    if tIni not in ["", "0.0", None] and tFin not in ["", "0.0", None]:
-        # Use Servlet4 when tIni and tFin are provided
+def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):
+    use_servlet4 = tIni not in ["", "0.0", None] and tFin not in ["", "0.0", None]
+
+    if use_servlet4:
         server_url_similar = "http://localhost:8080/Servlet4"
         params_similar = {
             "dbDirectory": "primitive_DB",
@@ -53,11 +96,10 @@ def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):  # �
             "match": "32"
         }
     else:
-        # Default to Servlet6 when no specific time window is provided
         server_url_similar = "http://localhost:8080/Servlet6"
         params_similar = {
             "dbDirectory": "primitive_DB",
-            "dbName": "TESTING",  # if needed, replace this with database_name
+            "dbName": "TESTING",  # Cambia si quieres usar database_name
             "signalName": database_name,
             "shotNumber": shot_number,
             "tIni": "0.0",
@@ -69,59 +111,46 @@ def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):  # �
 
     try:
         response_similar = requests.get(server_url_similar, params=params_similar)
-        print(f"✅ Raw Response from Servlet6:\n{response_similar.text[:500]}")  # Debugging
+        print(f"✅ Raw Response from backend:\n{response_similar.text[:500]}")
 
         if not response_similar.ok:
-            print(f"❌ Error: Servlet6 returned status {response_similar.status_code}")
+            print(f"❌ Error: backend returned status {response_similar.status_code}")
             return []
 
         response_text = response_similar.text.strip().split("\n")
-
-        # Ensure valid response format
         if len(response_text) < 3 or not response_text[2]:
-            print("❌ Error: Unexpected response format from Servlet6.")
+            print("❌ Error: Unexpected response format.")
             return []
 
-        # Extract confidence scores and shot numbers
-        try:
-            if "Servlet4" in server_url_similar:
-                # Parsing format for Servlet4: shot, tIni, duration, confidence
-                filtered_lines = [
-                    line.strip() for line in response_text[2:] if len(line.split()) >= 4
-                ]
-                similar_shots = []
-                for line in filtered_lines[:4]:
-                    parts = line.split()
-                    shot = parts[0]
-                    tIni_val = float(parts[1].replace(",", "."))
-                    duration = float(parts[2].replace(",", "."))
-                    confidence = float(parts[3].replace(",", "."))
-                    similar_shots.append((confidence, shot))  # Only return what's needed
-            else:
-                # Parsing format for Servlet6: confidence, shot
-                filtered_lines = [
-                    line.strip() for line in response_text[2:] if len(line.split()) >= 2
-                ]
-                similar_shots = [
-                    (float(line.split()[0].replace(",", ".")), line.split()[1])
-                    for line in filtered_lines
-                ]
+        # ✅ Parse response depending on the servlet
+        similar_shots = []
 
-            print(f"✅ Parsed Similar Shots: {similar_shots}")
-            if "Servlet4" in server_url_similar:
-                print(f"📡 Request to Servlet4: {server_url_similar} with params {params_similar}")
-            else:
-                print(f"📡 Request to Servlet6: {server_url_similar} with params {params_similar}")
-            return similar_shots[:4]  # Return top 4 similar shots
+        if use_servlet4:
+            filtered_lines = [line.strip() for line in response_text[2:] if len(line.split()) >= 4]
+            for line in filtered_lines[:4]:
+                parts = line.split()
+                shot = parts[0]
+                tIni_val = float(parts[1].replace(",", "."))
+                duration = float(parts[2].replace(",", "."))
+                confidence = float(parts[3].replace(",", "."))
+                tFin_val = tIni_val + duration
+                similar_shots.append((confidence, shot, tIni_val, tFin_val))
+        else:
+            filtered_lines = [line.strip() for line in response_text[2:] if len(line.split()) >= 2]
+            similar_shots = [
+                (float(line.split()[0].replace(",", ".")), line.split()[1])
+                for line in filtered_lines[:4]
+            ]
 
-        except ValueError as e:
-            print(f"❌ Error parsing response: {e}")
-            return []
+        print(f"✅ Parsed Similar Shots: {similar_shots}")
+        print(f"📡 Request to {'Servlet4' if use_servlet4 else 'Servlet6'}: {server_url_similar} with params {params_similar}")
+
+        return similar_shots
 
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error connecting to Servlet6: {e}")
+        print(f"❌ Error connecting to servlet: {e}")
         return []
-
+    
 # Function to fetch and plot signals
 # Function to fetch and plot signals (adapted to use tIni/tFin ranges if available)
 def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
@@ -197,62 +226,100 @@ async def ask_gemini(request: Request):
     try:
         data = await request.json()
         print(f"🔍 Incoming Data: {data}")
-        # Convert shot_number to a string before using .strip()
+
+        # 📥 Extracción de datos
         shot_number = str(data.get("shot_number", "")).strip()
         question = str(data.get("question", "")).strip()
         database_name = str(data.get("database_name", "")).strip()
         tIni = str(data.get("tIni", "")).strip()
         tFin = str(data.get("tFin", "")).strip()
+
         if not shot_number or not question or not database_name:
             raise HTTPException(status_code=400, detail="Missing required data")
 
         print(f"🔹 Extracted shot_number: {shot_number}, question: {question}, database_name: {database_name}")
 
-        # ✅ Fetch similar signals
+        # ✅ Obtener señales similares
         similar_shots = get_similar_signals(shot_number, database_name, tIni, tFin)
         if not similar_shots:
             raise HTTPException(status_code=400, detail="No similar signals found.")
 
         print(f"✅ Similar shots retrieved: {similar_shots}")
 
-        # ✅ Convert similarity data to text format
-        similarity_data = "\n".join([f"Shot {shot}: Confidence {conf:.4f}" for conf, shot in similar_shots])
+        # ✅ Crear resumen tipo: 1,0000 - 56900 - [1020,018 , 1025,3019966]
+        pattern_summary = ""
+        if len(similar_shots[0]) == 4:  # Solo si incluye tIni y tFin (Servlet4)
+            pattern_summary = "\n".join([
+                f"{conf:.4f}".replace(".", ",") +
+                f" - {shot} - [{str(tini).replace('.', ',')} , {str(tfin).replace('.', ',')}]"
+                for conf, shot, tini, tfin in similar_shots
+            ])
+            print("📊 Pattern Summary:\n" + pattern_summary)
 
-        # ✅ Ask Gemini AI
+        # ✅ Preparar data para Gemini
+        if len(similar_shots[0]) == 4:
+            similarity_data = "\n".join([
+                f"Shot {shot}: Confidence {conf:.4f}"
+                for conf, shot, _, _ in similar_shots
+            ])
+        else:
+            similarity_data = "\n".join([
+                f"Shot {shot}: Confidence {conf:.4f}"
+                for conf, shot in similar_shots
+            ])
+
         prompt = f"""
-        The user is analyzing plasma fusion shot similarities.
-        The reference shot number is {shot_number}, and here are the most similar signals:
+        You are assisting a plasma fusion researcher in analyzing signal similarity patterns.
 
-        {similarity_data}
+        The reference discharge is: {shot_number}  
+        The user asked the following question:
+        "{question}"
 
-        The user asks: "{question}"
+        If no pattern interval is given, just use the confidence and shot number provided. 
+        
+        Else, present the information in this format. Take into account the tIni and tFin
+        values may vary from the user input but they´re still correct:
+
+        1,0000 - 56900 - [1020,018 , 1030,586054]
 
         Answer clearly in plain text format without using asterisks, markdown, or extra formatting.
         Use bullet points when listing similarities and the confidence level.
+
+        Here is the data to include:
+        {pattern_summary or similarity_data}
         """
 
         print(f"📡 Sending prompt to Gemini: {prompt[:200]}...")
 
+        # ✅ Llamada a Gemini
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
-
         cleaned_response = clean_ai_response(response.text)
 
         print(f"✅ Cleaned AI Response:\n{cleaned_response}")
+
+        # ✅ Generar gráfico
         signal_name = database_name
-        # ✅ Generate Plot
         plot_path = plot_signals(shot_number, similar_shots, signal_name)
         plot_url = f"http://localhost:5004/static/{os.path.basename(plot_path)}"
 
+        # ✅ Guardar contexto
+        save_similpattern_context(
+            question=question,
+            plot_path=plot_path,
+            pattern_summary=pattern_summary,
+            similar_shots=similar_shots
+        )
+
         return JSONResponse(content={
             "response": cleaned_response,
-            "plot_url": plot_url
+            "plot_url": plot_url,
+            "pattern_summary": pattern_summary
         })
 
     except Exception as e:
         print(f"❌ ERROR in /ask_gemini: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
-    
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")    
         
 @app.post("/extract_shot_number_and_database")
 async def extract_shot_number_and_database(request: Request):
