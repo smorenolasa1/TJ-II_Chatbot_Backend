@@ -10,6 +10,12 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 from langchain_community.llms import Replicate
 import matplotlib
+import json
+import os
+
+CONTEXT_DIR = "context"
+os.makedirs(CONTEXT_DIR, exist_ok=True)
+
 matplotlib.use('Agg')  # Prevents GUI errors
 
 # Load environment variables
@@ -35,6 +41,31 @@ llm = Replicate(
 )
 
 BASE_URL = "https://info.fusion.ciemat.es/cgi-bin/TJII_data.cgi"
+
+def save_shotllama2_context(question, plot_path=None):
+    context_file = os.path.join(CONTEXT_DIR, "shotllama2_history.json")
+
+    new_entry = {
+        "question": question,
+        "plot_path": plot_path
+    }
+
+    try:
+        if os.path.exists(context_file):
+            with open(context_file, "r", encoding="utf-8") as f:
+                history = json.load(f)
+        else:
+            history = []
+
+        history.append(new_entry)
+
+        with open(context_file, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=2)
+
+        print(f"✅ Context updated in {context_file}")
+
+    except Exception as e:
+        print(f"❌ Error saving context: {e}")
 
 def parse_user_input_with_ai(user_input):
     """Uses an AI model to extract structured data from user input."""
@@ -151,6 +182,16 @@ async def get_tjii_plot(request: Request):
 
         img_buffer = plot_data(data_points_dict)
         print("📊 Successfully generated plot")
+        plot_filename = f"plot_shot_{shot}.png"
+        plot_path = os.path.join("static", plot_filename)
+
+        with open(plot_path, "wb") as f:
+            f.write(img_buffer.getbuffer())
+        
+        save_shotllama2_context(
+            question=user_input,
+            plot_path=plot_path
+        )
         return StreamingResponse(img_buffer, media_type="image/png")
 
     except HTTPException as http_exc:
