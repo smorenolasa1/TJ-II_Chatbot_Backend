@@ -75,20 +75,19 @@ async def ask_question(request: Request):
             too_large_message = f"\u26a0\ufe0f Your dataset has {total_rows} rows. We can only process {MAX_ROWS} rows at a time."
 
         query = f"""
-        The following CSV data (rows {start_row} to {end_row}) has been uploaded:
+        Se han subido los siguientes datos CSV (filas {start_row} a {end_row}):
 
         {csv_data}
 
-        ### Instructions:
-        - Analyze the data carefully and answer the following question:
+        ### Instrucciones:
+        - Analiza detenidamente los datos proporcionados y responde a la siguiente pregunta:
         **{question}**
-        - Present the answer in a well-structured format.
-        - Use bullet points (`-`) for lists.
-        - Use bold (`**`) for important values.
-        - Use subheadings (##) if necessary.
-        - Ensure clarity and avoid unnecessary repetition.
+        - Presenta la respuesta de forma clara y bien estructurada.
+        - Usa viñetas (`-`) para listas.
+        - Resalta los valores importantes usando negritas (`**`).
+        - Utiliza subtítulos (##) si es necesario para organizar mejor la información.
+        - Asegúrate de que la explicación sea concisa y evita repeticiones innecesarias.
         """
-
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(query)
 

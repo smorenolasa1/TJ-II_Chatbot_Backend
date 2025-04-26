@@ -1,6 +1,6 @@
 [
   {
-    "question": "plot Densidad2_ for shot 18080",
+    "question": "Draw Densidad2_, ECE10 and ABOL11 for the discharge 18080",
     "plot_path": "static/plot_shot_18080.png"
   }
 ]

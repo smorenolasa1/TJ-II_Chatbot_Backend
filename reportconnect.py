@@ -19,6 +19,7 @@ from docx import Document
 from docx.shared import Inches, Pt
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
+import re
 
 # Configuración inicial
 load_dotenv()
@@ -32,7 +33,13 @@ CONTEXT_DIR = "context"
 STATIC_DIR = "static"
 os.makedirs(CONTEXT_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
-
+def is_markdown_table(lines):
+    return (
+        len(lines) >= 2
+        and "|" in lines[0]
+        and "|" in lines[1]
+        and set(lines[1].strip()) <= set("|- ")
+    )
 @app.get("/generate_report")
 def generate_report():
     files = {
@@ -72,6 +79,8 @@ Generate clear section headers (no #), concise bullet points if useful, and form
 
 DO NOT write meta-instructions like "Here's the report".
 
+Don´t write the similarity pattern info like confidence shot and interval, since it is already being displayed in a graph.
+Do write some small analysis of the results.
 Structure it like this when possible:
 
 Tool Name
@@ -101,16 +110,28 @@ Here is the raw input:
 
     for block in cleaned.split("\n\n"):
         lines = block.strip().split("\n")
-        # Ignorar bloques vacíos
         if not lines:
             continue
 
-        # Si el primer elemento es una imagen
         if lines[0].lower().startswith("plot:"):
             plot_path = lines[0].split(":", 1)[1].strip()
             full_path = os.path.join(plot_path)
             if os.path.exists(full_path):
                 doc.add_picture(full_path, width=Inches(5.5))
+        elif is_markdown_table(lines):
+            # Parse markdown table to 2D list
+            table_data = [
+                [cell.strip() for cell in row.strip("|").split("|")]
+                for row in lines
+                if not re.match(r"^\s*\|?\s*-+\s*\|", row)  # Skip separator line
+            ]
+            table = doc.add_table(rows=0, cols=len(table_data[0]))
+            table.style = 'Table Grid'
+
+            for row_data in table_data:
+                row = table.add_row().cells
+                for idx, cell in enumerate(row_data):
+                    row[idx].text = cell
         else:
             for line in lines:
                 if not line.lower().startswith("query:"):

@@ -343,10 +343,11 @@ async def extract_shot_number_and_database(request: Request):
         Return the result as a valid JSON object like this:
 
         {{
-            "shot_number": "<shot_number>",
-            "database_name": "<database_name>"
-            "tIni": "<tIni>",
-            "tFin": "<tFin>"
+            "shot_number": "56918",
+            "database_name": "HALFAC4",
+            "tIni": "0.0",
+            "tFin": "2000.0",
+            "signals": ["HALFAC4"]
         }}
 
         If no valid shot number, database name or tIni, tFin is found, return:
@@ -358,6 +359,7 @@ async def extract_shot_number_and_database(request: Request):
             "tFin": "0.0"
         }}
 
+        Please ensure the database_name is either "HALFAC4" or "Densidad2_".
         Ensure the output is strictly JSON formatted and nothing else.
         """
 

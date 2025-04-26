@@ -1,6 +1,14 @@
 [
   {
-    "question": "cuantas descargas se hicieron en 2013?",
-    "response": "Respuesta: Hubo 3749 descargas en 2013.\n\nExplicaci\u00f3n: La consulta SQL cont\u00f3 el n\u00famero de descargas (representado por la columna `N_DESCARGA`) realizadas durante el a\u00f1o 2013. El resultado, 3749, indica el n\u00famero total de descargas registradas en ese periodo."
+    "question": "\u00bfQu\u00e9 a\u00f1o se hicieron m\u00e1s descargas?",
+    "response": "Respuesta: En el a\u00f1o 2013 se realizaron m\u00e1s descargas.\n\nEl resultado de la consulta muestra que en el a\u00f1o 2013 se registr\u00f3 el mayor n\u00famero de descargas, con un total de 3749.  No se proporcionaron datos de otros a\u00f1os, por lo que 2013 es el a\u00f1o con mayor n\u00famero de descargas dentro del conjunto de datos consultado."
+  },
+  {
+    "question": "comentario: comentarioDesc, limitador: limitador_z1",
+    "response": "Respuesta: Est muy \"chisposa\" pero aguanta entera.\n\nExplicaci\u00f3n del resultado:\n\nEste comentario, realizado a las 11:27, indica que algo, probablemente un componente del reactor de fusi\u00f3n, est\u00e1 generando muchas chispas (\"chisposa\") pero se mantiene intacto (\"aguanta entera\").  El valor \"0\" para el \"limitador_z1\" podr\u00eda referirse a una posici\u00f3n o un estado espec\u00edfico de este limitador.  Finalmente, la informaci\u00f3n sobre la pared (\"Boronizado y Litiado el 7 de noviembre de 2016\") proporciona contexto, sugiriendo que el comentario se refiere a un experimento realizado despu\u00e9s de ese tratamiento de la pared del reactor. El boro y el litio se utilizan en reactores de fusi\u00f3n para controlar las impurezas del plasma y mejorar el rendimiento."
+  },
+  {
+    "question": "\u00bfCu\u00e1ntas descargas se han hecho en el mes de junio de 2023?",
+    "response": "Respuesta: Hubo 555 descargas en junio de 2023.\n\nExplicaci\u00f3n: La consulta SQL cont\u00f3 el n\u00famero de descargas (representado por la columna \"N_DESCARGA\") realizadas durante el mes de junio de 2023. El resultado, 555, indica el n\u00famero total de descargas registradas en ese periodo."
   }
 ]

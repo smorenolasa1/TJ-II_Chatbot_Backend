@@ -183,20 +183,25 @@ def ask_question(question: Question):
             "La tabla se llama 'data'.\n"
             f"Pregunta del usuario: '{active_conversation.get('original_question', '')}'.\n"
             f"Las columnas disponibles son: {', '.join(column_names)}.\n"
-            "Genera una consulta SQL válida usando exclusivamente estas columnas.\n"
-            
+            "Genera una consulta SQL válida usando SOLO y exclusivamente los nombres de estas columnas disponibles.\n\n"
+
             "### Manejo de fechas ('fecha' en formato YYYY-MM-DD):\n"
             "- Para un **día específico** usa: `WHERE fecha = 'YYYY-MM-DD'`.\n"
             "- Para un **mes específico** usa: `WHERE strftime('%Y-%m', fecha) = 'YYYY-MM'`.\n"
-            "- Para un **año específico** usa: `WHERE strftime('%Y', fecha) = 'YYYY'`.\n"
-            
+            "- Para un **año específico** usa: `WHERE strftime('%Y', fecha) = 'YYYY'`.\n\n"
+
+            "### Manejo de descargas:\n"
+            "- Si el usuario menciona una **descarga específica**, como 'descarga 42452' o un número solo, usa `WHERE N_DESCARGA = '42452'`.\n"
+            "- No uses otras columnas como `hora`, `pared`, `comentario`, etc. para buscar una descarga. Siempre usa `N_DESCARGA` para filtrar descargas.\n\n"
+
             "### Consideraciones adicionales:\n"
-            "Todos los numeros y celdas son strings"
-            "- Si se requiere contar descargas, usa `COUNT(N_DESCARGA)`.\n"
+            "- Todos los números y celdas son strings.\n"
+            "- Para contar descargas, usa `COUNT(N_DESCARGA)`.\n"
             "- Para agrupar por año, usa `GROUP BY strftime('%Y', fecha)`.\n"
-            "- Si se necesita obtener solo el valor más alto, usa `ORDER BY total_descargas DESC LIMIT 1`.\n"
-            "Si el usuario menciona una configuración específica, filtra con la columna `configuracion`.\n"
-            "Devuelve SOLO la consulta SQL sin texto adicional."
+            "- Para obtener solo el valor más alto, usa `ORDER BY total_descargas DESC LIMIT 1`.\n"
+            "- Si el usuario menciona una configuración específica, filtra usando `configuracion`.\n\n"
+
+            "Devuelve SOLO la consulta SQL válida, sin texto adicional."
         )
 
         response = llm.invoke(input=llm_input).strip()
@@ -226,7 +231,7 @@ def ask_question(question: Question):
         result_text = json.dumps(result, indent=2)
         result_lines = result_text.split("\n")
         # If the result has more than 5 lines, return it directly without calling Gemini AI
-        if len(result_lines) > 5:
+        if len(result_lines) > 15:
             print("[DEBUG] SQL result is too long. Skipping Gemini AI and returning raw result.")
             return {"answer": result}
 
