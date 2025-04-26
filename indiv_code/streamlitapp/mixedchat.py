@@ -3,8 +3,8 @@ import urllib3
 import streamlit as st
 import time
 import subprocess  # Para ejecutar otro script
-from shotllama2 import parse_user_input_with_ai, generate_url, fetch_data, extract_data_points, load_keywords, plot_data_per_signal
-from shotllama2 import load_signal_options
+from indiv_code.streamlitapp.shotllama2 import parse_user_input_with_ai, generate_url, fetch_data, extract_data_points, load_keywords, plot_data_per_signal
+from indiv_code.streamlitapp.shotllama2 import load_signal_options
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

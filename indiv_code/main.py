@@ -4,8 +4,8 @@ from fastapi import FastAPI
 app = FastAPI()
 
 # Import and include routers from both apps
-from csvllama2 import app as csv_app
-from pelletllama2 import app as pellet_app
+from indiv_code.csvllama2 import app as csv_app
+from indiv_code.pelletllama2 import app as pellet_app
 
 # Mount the two apps at different endpoints
 app.mount("/csv", csv_app)

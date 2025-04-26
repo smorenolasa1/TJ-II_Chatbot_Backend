@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from langchain_community.llms import Replicate
-from wordspellet import process_query  # Import words.py function
+from indiv_code.wordspellet import process_query  # Import words.py function
 import re
 
 nest_asyncio.apply()
