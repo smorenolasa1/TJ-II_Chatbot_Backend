@@ -13,3 +13,4 @@ data/PelletInjections_AP_cleaned.json
 PARAMETROS_TJ2_model_time1.json
 .env
 venv
+csvreducedrows.py
