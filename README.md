@@ -117,3 +117,14 @@ Each service runs independently via `uvicorn`.
 - **ReportLab** (PDF generation)
 
 ---
+
+# First Iteration Demos (Streamlit Development Phase)
+
+During the early stages of the project, Streamlit was used to rapidly prototype and validate the backend functionalities before migrating to a dedicated frontend in React.  
+Below are video demonstrations showcasing the progression of these initial iterations:
+
+| Demo | Description | Link |
+|:-----|:------------|:-----|
+| Basic CSV Querying | User selects specific column names to clarify queries. | [View Demo](https://drive.google.com/file/d/1d-XmbU0FBs4v8vltmIZ6BGogoqoUWI-T/view?usp=sharing) |
+| Simple Queries + Initial Graph Plotting | Basic questions and first iterations of signal plotting from CSV data. | [View Demo](https://drive.google.com/file/d/16VuyjFm1RLBzjVombza0IByjoRl-KsG3/view?usp=sharing) |
+| Complex Queries + Pellet Dataset Integration | Extension to a second dataset (PelletInjections.csv) allowing more complex questions about pellet activity per discharge. | [View Demo](https://drive.google.com/file/d/1PRKRLAEUH3vJ2_EfZzS4N2tuaY-Ty1B5/view?usp=sharing) |
