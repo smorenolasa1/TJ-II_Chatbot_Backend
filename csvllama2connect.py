@@ -25,7 +25,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change to ["http://localhost:3000"] if you want to be strict
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -91,6 +91,7 @@ def save_csvupdate_context(question, response=None):
 
     except Exception as e:
         print(f"❌ Error saving CSV context: {e}")
+
 # Helper function to execute SQL queries dynamically
 def execute_sql_query(data, sql_query):
     try:
@@ -108,6 +109,7 @@ def execute_sql_query(data, sql_query):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"SQL Execution Error: {e}")
+
 # Define request model for the API
 class Question(BaseModel):
     question: str
@@ -145,7 +147,7 @@ def ask_question(question: Question):
             print(f"[DEBUG] Updated Final Keyword Mapping: {active_conversation['final_keyword_mapping']}")
 
         else:
-                        # New question: Process normally
+            # New question: Process normally
             extracted_keywords = process_query(question.question)
 
             if not extracted_keywords or extracted_keywords == "No matching parameters found.":
@@ -178,7 +180,7 @@ def ask_question(question: Question):
         # Print active conversation before sending to LLM
         print(f"[DEBUG] LLM Input Being Sent: \nUser's question: '{active_conversation.get('original_question', '')}'.\n")        
 
-        # Use the **original question** when sending to the LLM, even after clarifications
+        # Use the original question when sending to the LLM, even after clarifications
         llm_input = (
             "La tabla se llama 'data'.\n"
             f"Pregunta del usuario: '{active_conversation.get('original_question', '')}'.\n"
@@ -208,7 +210,6 @@ def ask_question(question: Question):
         print(f"Raw LLM Response: {response}")
 
         # Extract only the SQL query
-        # Extract only the SQL query, handling cases where LLM adds backticks
         match = re.search(r"```sql\s+(SELECT[\s\S]+?)\s+```", response, re.IGNORECASE)
 
         if match:
@@ -246,7 +247,7 @@ def ask_question(question: Question):
 
         final_response = model.generate_content(explanation_prompt).text.strip()
         print(f"Final LLM Response: {final_response}")
-        # ✅ Save context
+        # Save context
         save_csvupdate_context(
             question=question.question,
             response=final_response

@@ -122,7 +122,7 @@ def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):
             print("❌ Error: Unexpected response format.")
             return []
 
-        # ✅ Parse response depending on the servlet
+        # Parse response depending on the servlet
         similar_shots = []
 
         if use_servlet4:
@@ -151,7 +151,6 @@ def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):
         print(f"❌ Error connecting to servlet: {e}")
         return []
     
-# Function to fetch and plot signals
 # Function to fetch and plot signals (adapted to use tIni/tFin ranges if available)
 def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
     server_url_signal = "http://localhost:8080/Servlet7"
@@ -188,7 +187,7 @@ def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
                     except ValueError:
                         continue
 
-            # ✅ Apply pattern range filter if provided
+            # Apply pattern range filter if provided
             if pattern_ranges and shot in pattern_ranges:
                 t_min, t_max = pattern_ranges[shot]
                 filtered_points = [(t, a) for t, a in zip(times, amplitudes) if t_min <= t <= t_max]
@@ -205,7 +204,7 @@ def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
     plt.title(f"Signal {signal_name} and Similar Signals")
     plt.legend()
 
-    # 🔑 Create unique filename to avoid caching
+    # Create unique filename to avoid caching
     import uuid
     unique_id = uuid.uuid4().hex[:6]
     plot_filename = f"plot_{signal_name}_{shot_number}_{unique_id}.png"
@@ -227,7 +226,7 @@ async def ask_gemini(request: Request):
         data = await request.json()
         print(f"🔍 Incoming Data: {data}")
 
-        # 📥 Extracción de datos
+        # Extracción de datos
         shot_number = str(data.get("shot_number", "")).strip()
         question = str(data.get("question", "")).strip()
         database_name = str(data.get("database_name", "")).strip()
@@ -239,14 +238,14 @@ async def ask_gemini(request: Request):
 
         print(f"🔹 Extracted shot_number: {shot_number}, question: {question}, database_name: {database_name}")
 
-        # ✅ Obtener señales similares
+        # Obtener señales similares
         similar_shots = get_similar_signals(shot_number, database_name, tIni, tFin)
         if not similar_shots:
             raise HTTPException(status_code=400, detail="No similar signals found.")
 
         print(f"✅ Similar shots retrieved: {similar_shots}")
 
-        # ✅ Crear resumen tipo: 1,0000 - 56900 - [1020,018 , 1025,3019966]
+        # Crear resumen tipo: 1,0000 - 56900 - [1020,018 , 1025,3019966]
         pattern_summary = ""
         if len(similar_shots[0]) == 4:  # Solo si incluye tIni y tFin (Servlet4)
             pattern_summary = "\n".join([
@@ -256,7 +255,7 @@ async def ask_gemini(request: Request):
             ])
             print("📊 Pattern Summary:\n" + pattern_summary)
 
-        # ✅ Preparar data para Gemini
+        # Preparar data para Gemini
         if len(similar_shots[0]) == 4:
             similarity_data = "\n".join([
                 f"Shot {shot}: Confidence {conf:.4f}"
@@ -291,19 +290,19 @@ async def ask_gemini(request: Request):
 
         print(f"📡 Sending prompt to Gemini: {prompt[:200]}...")
 
-        # ✅ Llamada a Gemini
+        # Llamada a Gemini
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
         cleaned_response = clean_ai_response(response.text)
 
         print(f"✅ Cleaned AI Response:\n{cleaned_response}")
 
-        # ✅ Generar gráfico
+        # Generar gráfico
         signal_name = database_name
         plot_path = plot_signals(shot_number, similar_shots, signal_name)
         plot_url = f"http://localhost:5004/static/{os.path.basename(plot_path)}"
 
-        # ✅ Guardar contexto
+        # Guardar contexto
         save_similpattern_context(
             question=question,
             plot_path=plot_path,
@@ -332,7 +331,6 @@ async def extract_shot_number_and_database(request: Request):
 
         print(f"📡 Extracting shot number and database name from query: {user_query}")
 
-        # ✅ Improved Prompt
         prompt = f"""
         The user provided the following query related to plasma fusion shots:
         "{user_query}"
@@ -366,15 +364,15 @@ async def extract_shot_number_and_database(request: Request):
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(prompt)
 
-        # ✅ Log the raw response before parsing
+        # Log the raw response before parsing
         raw_response = response.text.strip()
         print(f"🌟 Raw Response from Gemini: {raw_response}")
 
-        # ✅ Remove markdown formatting (triple backticks)
+        # Remove markdown formatting (triple backticks)
         cleaned_response = re.sub(r"```json\n|```", "", raw_response).strip()
         print(f"✅ Cleaned Response: {cleaned_response}")
 
-        # ✅ Parse the cleaned response as JSON
+        # Parse the cleaned response as JSON
         try:
             extracted_data = json.loads(cleaned_response)
             shot_number = extracted_data.get("shot_number")

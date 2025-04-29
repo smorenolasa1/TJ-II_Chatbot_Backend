@@ -1,7 +1,7 @@
 import json
 import spacy
 import re
-from fuzzywuzzy import process  # ✅ Fuzzy matching for typos
+from fuzzywuzzy import process  # Fuzzy matching for typos
 
 # File paths
 COLUMN_NAMES_FILE = "data/column_names.txt"
@@ -51,7 +51,7 @@ def normalize_word(token):
     return lemma
 
 # Apply fuzzy matching to fix typos
-def correct_typos(keyword, valid_words, threshold=80):  # ✅ Lowered threshold for better matches
+def correct_typos(keyword, valid_words, threshold=80):  # Lowered threshold for better matches
     """Find the closest word to 'keyword' within 'valid_words' using fuzzy matching."""
     match, score = process.extractOne(keyword, valid_words)  # Find best match
     return match if score >= threshold else keyword  # Only replace if it's a close match
@@ -79,7 +79,7 @@ def extract_keywords(query, column_names):
 def normalize_column_name(name):
     name = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)  # Split camelCase
     name = name.replace("_", " ")  # Replace underscores with spaces
-    return name.lower().strip()  # ✅ Remove leading/trailing spaces
+    return name.lower().strip()  # Remove leading/trailing spaces
 
 # Retrieve relevant keys based on matched keywords (exact match first, fallback to partial match)
 def retrieve_relevant_keys(keywords, column_names):

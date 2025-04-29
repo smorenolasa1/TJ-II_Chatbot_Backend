@@ -73,26 +73,26 @@ def generate_report():
     report_text = "# Plasma Fusion Tools Report\n\n" + "\n".join(sections)
 
     prompt = f"""
-You are a scientific assistant generating a clean, structured report based on plasma fusion tools analysis.
+    You are a scientific assistant generating a clean, structured report based on plasma fusion tools analysis.
 
-Generate clear section headers (no #), concise bullet points if useful, and format numerical tables when needed.
+    Generate clear section headers (no #), concise bullet points if useful, and format numerical tables when needed.
 
-DO NOT write meta-instructions like "Here's the report".
+    DO NOT write meta-instructions like "Here's the report".
 
-Don´t write the similarity pattern info like confidence shot and interval, since it is already being displayed in a graph.
-Do write some small analysis of the results.
-Structure it like this when possible:
+    Don´t write the similarity pattern info like confidence shot and interval, since it is already being displayed in a graph.
+    Do write some small analysis of the results.
+    Structure it like this when possible:
 
-Tool Name
-Query: ...
-Pattern Summary:
-[Table]
-Results: ...
-Plot: [keep the relative plot path]
+    Tool Name
+    Query: ...
+    Pattern Summary:
+    [Table]
+    Results: ...
+    Plot: [keep the relative plot path]
 
-Here is the raw input:
-{report_text}
-"""
+    Here is the raw input:
+    {report_text}
+    """
 
     model = genai.GenerativeModel(MODEL_NAME)
     response = model.generate_content(prompt)
@@ -162,7 +162,7 @@ Here is the raw input:
             data = [
                 line.strip("|").split("|")
                 for line in lines
-                if not all(cell.strip("- ") == "" for cell in line.strip("|").split("|"))  # descarta fila de --- separadora
+                if not all(cell.strip("- ") == "" for cell in line.strip("|").split("|"))  # descarta fila separadora
             ]
             table = Table(data)
             table.setStyle(TableStyle([
