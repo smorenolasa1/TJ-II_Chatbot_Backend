@@ -128,3 +128,4 @@ Below are video demonstrations showcasing the progression of these initial itera
 | Basic CSV Querying | User selects specific column names to clarify queries. | [View Demo](https://drive.google.com/file/d/1d-XmbU0FBs4v8vltmIZ6BGogoqoUWI-T/view?usp=sharing) |
 | Simple Queries + Initial Graph Plotting | Basic questions and first iterations of signal plotting from CSV data. | [View Demo](https://drive.google.com/file/d/16VuyjFm1RLBzjVombza0IByjoRl-KsG3/view?usp=sharing) |
 | Complex Queries + Pellet Dataset Integration | Extension to a second dataset (PelletInjections.csv) allowing more complex questions about pellet activity per discharge. | [View Demo](https://drive.google.com/file/d/1PRKRLAEUH3vJ2_EfZzS4N2tuaY-Ty1B5/view?usp=sharing) |
+| LangChain CSV Agent with OpenAI | Streamlit prototype using `create_pandas_dataframe_agent` for uploading and querying CSVs. | [View Demo](https://drive.google.com/file/d/14DQc-aMyZuPqHDyI9S5ongd_6D-fPTwW/view?usp=drive_link) |
