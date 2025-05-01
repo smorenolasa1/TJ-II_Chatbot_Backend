@@ -22,7 +22,7 @@ uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
 
 if uploaded_file:
     try:
-        # ✅ Leer el CSV con separador personalizado y codificación
+        # Leer el CSV con separador
         df = pd.read_csv(
             uploaded_file,
             sep=";",
@@ -42,7 +42,7 @@ if uploaded_file:
             df,
             verbose=True,
             allow_dangerous_code=True,
-            handle_parsing_errors=True  # 👈 Añade esta línea
+            handle_parsing_errors=True 
         )
 
         # Input del usuario
