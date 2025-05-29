@@ -12,8 +12,6 @@ from dotenv import load_dotenv
 import requests
 import re
 import json
-import json
-import os
 from datetime import datetime
 
 CONTEXT_DIR = "context"
@@ -154,21 +152,25 @@ def get_similar_signals(shot_number, database_name, tIni=None, tFin=None):
 # Function to fetch and plot signals (adapted to use tIni/tFin ranges if available)
 def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
     server_url_signal = "http://localhost:8080/Servlet7"
+    # Create a list of all shots to plot (reference + similar)
     similar_only = [shot[1] for shot in similar_shots if shot[1] != shot_number]
     all_shots = [shot_number] + similar_only
     plt.figure(figsize=(10, 5))
 
+    # Set up the plot
     print(f"📡 Generating plot for signal: {signal_name}")
     for shot in all_shots:
+        # Prepare request parameters to be sent for Servlet7
         params_signal = {
             "dbDirectory": "primitive_DB",  
             "dbName": signal_name,
             "signalName": signal_name,
             "shotNumber": shot
         }
-
+        
         print(f"📡 Request to Servlet7: {server_url_signal} with params {params_signal}")
 
+        # Fetch the signal data from Servlet7
         response_signal = requests.get(server_url_signal, params=params_signal)
 
         if response_signal.status_code == 200:
@@ -176,7 +178,8 @@ def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
             print(f"🌟 Response from Servlet7 for shot {shot}: {response_text[:200]}")
             lines = response_text.split("\n")
             times, amplitudes = [], []
-
+            
+            # Parse signal data into time and amplitude lists
             for line in lines:
                 parts = line.split(",")
                 if len(parts) == 2:
@@ -187,7 +190,7 @@ def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
                     except ValueError:
                         continue
 
-            # Apply pattern range filter if provided
+            # If time ranges are specified (from Servlet4), filter the signal data
             if pattern_ranges and shot in pattern_ranges:
                 t_min, t_max = pattern_ranges[shot]
                 filtered_points = [(t, a) for t, a in zip(times, amplitudes) if t_min <= t <= t_max]
@@ -196,6 +199,7 @@ def plot_signals(shot_number, similar_shots, signal_name, pattern_ranges=None):
                 else:
                     continue  # Skip this shot if no data in range
 
+            # Plot the signal
             if len(amplitudes) > 0:
                 plt.plot(times, amplitudes, label=f"Shot {shot}", linewidth=0.5)
 

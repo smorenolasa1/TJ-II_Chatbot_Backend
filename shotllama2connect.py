@@ -73,10 +73,16 @@ def parse_user_input_with_ai(user_input):
     You are an AI that extracts structured data from user requests for plasma diagnostics.
     The user will provide a request in natural language, and you must extract the following fields:
 
+
     - "shot": integer (discharge number)
     - "tstart": float (start time in seconds, if provided, otherwise 0.00)
     - "tstop": float (stop time in seconds, if provided, otherwise 2000.00)
     - "signals": list of signal names (always as an array, even if only one signal is given)
+
+    The signal names can be any of the following. You have to write them exactly as they are if mentioned:
+    - "Densidad2_"
+    - "ECE10"
+    - "ABOL11"
 
     The input can be structured in different ways. Here are some examples of valid inputs and the expected structured output:
 
