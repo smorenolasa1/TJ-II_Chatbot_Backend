@@ -46,7 +46,7 @@ MAC:
 WINDOWS:
 4. Launch all FastAPI servers:
    ```bash
-   run_all_fastapi.bat
+   .\run_all_fastapi.bat
 5. Stop all FastAPI servers:
    ```bash
    taskkill /F /IM python.exe
