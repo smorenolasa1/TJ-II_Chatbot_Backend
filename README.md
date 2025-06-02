@@ -33,7 +33,7 @@ The backend also connects to an external **SimilPatternTool** server running loc
    ```bash
    chmod +x run_all_fastapi.sh
    ```
-
+MAC:
 4. Launch all FastAPI servers:
    ```bash
    ./run_all_fastapi.sh
@@ -43,6 +43,13 @@ The backend also connects to an external **SimilPatternTool** server running loc
    ```bash
    pkill -f "uvicorn"
    ```
+WINDOWS:
+4. Launch all FastAPI servers:
+   ```bash
+   run_all_fastapi.bat
+5. Stop all FastAPI servers:
+   ```bash
+   taskkill /F /IM python.exe
 
 ---
 
