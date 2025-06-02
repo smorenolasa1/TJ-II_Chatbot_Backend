@@ -1,5 +1,5 @@
-pip==24.0
-setuptools==58.2.0
+pip
+setuptools
 wheel
 reportlab
 python-docx
@@ -23,47 +23,46 @@ python-Levenshtein
 ngrok
 
 # NLP & AI
-spacy==3.8.4
-thinc==8.3.4
-sentence-transformers==3.3.1
-transformers==4.48.1
-langchain==0.3.15
-langchain-community==0.3.15
-langchain-core==0.3.31
-langchain-experimental==0.3.4
-langchain-text-splitters==0.3.5
-langchain-groq==0.2.3
-replicate==1.0.4
-huggingface-hub==0.27.1
+spacy
+thinc
+sentence-transformers
+transformers
+langchain
+langchain-community
+langchain-core
+langchain-experimental
+langchain-text-splitters
+langchain-groq
+replicate
+huggingface-hub
 
 # Data Processing
-pandasql==0.7.3
-scikit-learn==1.6.1
-pyarrow==19.0.0
-openpyxl==3.1.5
-jsonschema==4.23.0
-jsonpatch==1.33
-pydantic==2.10.5
-pydantic-settings==2.7.1
+pandasql
+scikit-learn
+pyarrow
+openpyxl
+jsonschema
+jsonpatch
+pydantic
+pydantic-settings
 
 # Web & APIs
-httpx==0.28.1
-httpx-sse==0.4.0
-starlette==0.45.3
-tenacity==9.0.0
+httpx
+httpx-sse
+tenacity
 
 # Streamlit & UI
-streamlit==1.41.1
-altair==5.5.0
-pydeck==0.9.1
-rich==13.9.4
+streamlit
+altair
+pydeck
+rich
 
 # Misc
-typer==0.15.1
-tqdm==4.67.1
-jinja2==3.1.5
-pillow==11.1.0
-filelock==3.16.1
-sympy==1.13.1
-yarl==1.18.3
-blinker==1.9.0
+typer
+tqdm
+jinja2
+pillow
+filelock
+sympy
+yarl
+blinker
